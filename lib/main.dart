@@ -789,8 +789,7 @@ class _HeroCard extends StatelessWidget {
             alignment: WrapAlignment.spaceBetween,
             children: [
               _GlassBadge(text: copy.todayChecklist),
-              _GlassBadge(text: '${copy.nextReminder}
-$nextReminder', multiline: true),
+              _GlassBadge(text: '${copy.nextReminder}\n$nextReminder', multiline: true),
             ],
           ),
           const SizedBox(height: 24),
