@@ -1,0 +1,15 @@
+.dart_tool/
+.build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+build/
+
+# IDE and local workspace files
+.idea/
+.metadata
+*.iml
+android/.kotlin/
+
+pubspec.lock
