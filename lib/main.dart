@@ -770,7 +770,6 @@ class _HeroCard extends StatelessWidget {
   final int dailyDoseGoal;
   final double progress;
   final String nextReminder;
-  final List<int> doseHours;
 
   @override
   Widget build(BuildContext context) {
