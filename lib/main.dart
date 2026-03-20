@@ -487,10 +487,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
                 child: pages[_selectedTab],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-              child: _AdSlotPreview(copy: copy, bannerLoaded: _bannerLoaded, bannerAd: _bannerAd),
-            ),
+            _AdSlotPreview(copy: copy, bannerLoaded: _bannerLoaded, bannerAd: _bannerAd),
           ],
         ),
       ),
@@ -672,8 +669,6 @@ class _SettingsTab extends StatelessWidget {
               label: Text(copy.resetToday),
             ),
           ),
-          const SizedBox(height: 18),
-          _InsightCard(copy: copy),
         ],
       ),
     );
@@ -1209,13 +1204,11 @@ class _AdSlotPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasRealBanner = !kIsWeb && bannerLoaded && bannerAd != null;
-    return Container(
+    if (!hasRealBanner) return const SizedBox.shrink();
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: const Color(0xFFE5DAFF))),
-      child: hasRealBanner
-          ? SizedBox(height: bannerAd!.size.height.toDouble(), width: bannerAd!.size.width.toDouble(), child: AdWidget(ad: bannerAd!))
-          : Row(children: [const Icon(Icons.campaign_outlined, color: Color(0xFF8F80BF)), const SizedBox(width: 10), Expanded(child: Text(copy.bannerPlaceholder, style: const TextStyle(color: Color(0xFF6C6192), fontWeight: FontWeight.w600)))]),
+      height: bannerAd!.size.height.toDouble(),
+      child: AdWidget(ad: bannerAd!),
     );
   }
 }
