@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -11,6 +12,13 @@ import 'services/reminder_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: const Color(0xFFF8F5FF),
+    systemNavigationBarIconBrightness: Brightness.dark,
+  ));
   await ReminderService.instance.initialize();
   if (!kIsWeb) {
     await MobileAds.instance.initialize();
@@ -136,6 +144,17 @@ class PillReminderApp extends StatelessWidget {
       ],
       supportedLocales: const [Locale('ko'), Locale('en')],
       theme: ThemeData(
+        appBarTheme: const AppBarTheme(
+          backgroundColor: const Color(0xFFF8F5FF),
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.dark,
+          ),
+        ),
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF8F5FF),
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF7A5AF8), brightness: Brightness.light),
@@ -472,6 +491,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
     ];
 
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
         title: Text(copy.title),
         centerTitle: false,
