@@ -63,11 +63,11 @@ class AppCopy {
   String get emptyLog => isKorean ? '아직 기록이 없습니다.' : 'No medication logs yet.';
   String get goalReached => isKorean ? '오늘 복약 목표를 채웠습니다.' : 'You completed today\'s medication goal.';
   String get bannerPlaceholder => isKorean
-      ? '배너 광고 영역 · 관리자 설정에 따라 테스트 또는 릴리즈 광고가 표시됩니다.'
-      : 'Banner ad area · test or release ad units are loaded from admin settings.';
+      ? ''
+      : '';
   String get adHint => isKorean
-      ? '배너는 하단에 고정하고, 전면광고는 하루 복약 목표를 채운 뒤 같은 의미 있는 시점에만 노출되도록 설계했습니다.'
-      : 'Banner ads stay at the bottom, while interstitials appear only around meaningful completion moments.';
+      ? ''
+      : '';
   String get currentCycle => isKorean ? '현재 복약 사이클' : 'Current Medication Cycle';
   String get nextReminder => isKorean ? '다음 알림' : 'Next Reminder';
   String get takenLabel => isKorean ? '복용 완료' : 'Taken';
@@ -1159,7 +1159,7 @@ class _InsightCard extends StatelessWidget {
             child: const Icon(Icons.insights_rounded, color: Colors.white),
           ),
           const SizedBox(width: 14),
-          Expanded(child: Text(copy.adHint, style: const TextStyle(color: Colors.white, height: 1.5, fontWeight: FontWeight.w600))),
+          Expanded(child: Text(copy.notificationGuide, style: const TextStyle(color: Colors.white, height: 1.5, fontWeight: FontWeight.w600))),
         ],
       ),
     );
