@@ -783,11 +783,14 @@ class _HeroCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.spaceBetween,
             children: [
               _GlassBadge(text: copy.todayChecklist),
-              _GlassBadge(text: '${copy.nextReminder} · $nextReminder'),
+              _GlassBadge(text: '${copy.nextReminder}
+$nextReminder', multiline: true),
             ],
           ),
           const SizedBox(height: 24),
@@ -1294,16 +1297,24 @@ class _RingPainter extends CustomPainter {
 }
 
 class _GlassBadge extends StatelessWidget {
-  const _GlassBadge({required this.text});
+  const _GlassBadge({required this.text, this.multiline = false});
 
   final String text;
+  final bool multiline;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: BoxConstraints(maxWidth: multiline ? 170 : double.infinity),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(999)),
-      child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+      child: Text(
+        text,
+        textAlign: multiline ? TextAlign.center : TextAlign.start,
+        maxLines: multiline ? 2 : 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, height: 1.2),
+      ),
     );
   }
 }
