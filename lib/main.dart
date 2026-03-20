@@ -64,7 +64,7 @@ class AppCopy {
   String get goalReached => isKorean ? '오늘 복약 목표를 채웠습니다.' : 'You completed today\'s medication goal.';
   String get currentCycle => isKorean ? '복약 회차 설정' : 'Dose Cycle Settings';
   String get nextReminder => isKorean ? '다음 회차' : 'Next Dose';
-  String get doseTimeline => isKorean ? '오늘 복약 타임라인' : 'Today's Dose Timeline';
+  String get doseTimeline => isKorean ? '오늘 복약 일정' : 'Today\'s Medication Schedule';
   String get completedState => isKorean ? '완료' : 'Done';
   String get pendingState => isKorean ? '예정' : 'Pending';
   String get skippedState => isKorean ? '건너뜀' : 'Skipped';
