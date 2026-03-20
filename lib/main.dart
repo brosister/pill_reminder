@@ -576,7 +576,15 @@ class _HomeTab extends StatelessWidget {
         children: [
           Text(copy.subtitle, style: const TextStyle(color: Color(0xFF6C6192))),
           const SizedBox(height: 18),
-          _HeroCard(copy: copy, takenDoses: takenDoses, dailyDoseGoal: dailyDoseGoal, progress: progress, nextReminder: nextReminder),
+          Text(
+            copy.todayChecklist,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF25164D),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _HeroCard(copy: copy, takenDoses: takenDoses, dailyDoseGoal: dailyDoseGoal, progress: progress),
           const SizedBox(height: 18),
           _DoseTimelineCard(copy: copy, takenDoses: takenDoses, doseHours: doseHours),
           const SizedBox(height: 18),
@@ -605,12 +613,40 @@ class _HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(child: _MiniStatCard(title: copy.doseGoal, value: copy.doses(dailyDoseGoal), subtitle: copy.planName(selected.label), color: const Color(0xFF7A5AF8), icon: Icons.medication_liquid_rounded)),
-              const SizedBox(width: 12),
-              Expanded(child: _MiniStatCard(title: copy.reminderInterval, value: copy.intervalLabel(selected.intervalHours), subtitle: copy.hourLabel(selected.startHour), color: const Color(0xFF5B3CD0), icon: Icons.alarm_rounded)),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 340;
+              final first = _MiniStatCard(
+                title: copy.doseGoal,
+                value: copy.doses(dailyDoseGoal),
+                subtitle: copy.planName(selected.label),
+                color: const Color(0xFF7A5AF8),
+                icon: Icons.medication_liquid_rounded,
+              );
+              final second = _MiniStatCard(
+                title: copy.reminderInterval,
+                value: copy.intervalLabel(selected.intervalHours),
+                subtitle: copy.hourLabel(selected.startHour),
+                color: const Color(0xFF5B3CD0),
+                icon: Icons.alarm_rounded,
+              );
+              if (compact) {
+                return Column(
+                  children: [
+                    first,
+                    const SizedBox(height: 12),
+                    second,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: first),
+                  const SizedBox(width: 12),
+                  Expanded(child: second),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -763,13 +799,12 @@ class _DoseTimelineCard extends StatelessWidget {
 }
 
 class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.copy, required this.takenDoses, required this.dailyDoseGoal, required this.progress, required this.nextReminder});
+  const _HeroCard({required this.copy, required this.takenDoses, required this.dailyDoseGoal, required this.progress});
 
   final AppCopy copy;
   final int takenDoses;
   final int dailyDoseGoal;
   final double progress;
-  final String nextReminder;
 
   @override
   Widget build(BuildContext context) {
@@ -783,16 +818,6 @@ class _HeroCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.spaceBetween,
-            children: [
-              _GlassBadge(text: copy.todayChecklist),
-              _GlassBadge(text: '${copy.nextReminder}\n$nextReminder', multiline: true),
-            ],
-          ),
-          const SizedBox(height: 24),
           SizedBox(
             width: 250,
             height: 250,
@@ -874,7 +899,10 @@ class _MedicationChecklistCard extends StatelessWidget {
           Text(copy.medications, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF25164D))),
           const SizedBox(height: 14),
           if (medications.isEmpty)
-            Text(copy.emptyLog, style: const TextStyle(color: Color(0xFF7B74A3)))
+            Text(
+              copy.isKorean ? '등록된 약이 없습니다. 설정에서 복용할 약을 먼저 추가해 주세요.' : 'No medications added yet. Add the medicines you take in Settings first.',
+              style: const TextStyle(color: Color(0xFF7B74A3), height: 1.4),
+            )
           else
             ...medications.map((med) => Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -885,12 +913,40 @@ class _MedicationChecklistCard extends StatelessWidget {
                     children: [
                       Text(med.name, style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF25164D))),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: FilledButton.tonal(onPressed: () => onToggleMedication(med, true), child: Text(copy.takenLabel))),
-                          const SizedBox(width: 10),
-                          Expanded(child: FilledButton.tonal(onPressed: () => onToggleMedication(med, false), child: Text(copy.skippedLabel))),
-                        ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 320;
+                          final takenButton = SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.tonal(
+                              onPressed: () => onToggleMedication(med, true),
+                              child: Text(copy.takenLabel),
+                            ),
+                          );
+                          final skippedButton = SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.tonal(
+                              onPressed: () => onToggleMedication(med, false),
+                              child: Text(copy.skippedLabel),
+                            ),
+                          );
+                          if (compact) {
+                            return Column(
+                              children: [
+                                takenButton,
+                                const SizedBox(height: 10),
+                                skippedButton,
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(child: takenButton),
+                              const SizedBox(width: 10),
+                              Expanded(child: skippedButton),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 8),
                       Text(med.takenToday ? copy.takenLabel : med.skippedToday ? copy.skippedLabel : '-', style: const TextStyle(color: Color(0xFF7B74A3))),
@@ -922,6 +978,11 @@ class _MedicationManagerCard extends StatelessWidget {
         children: [
           Text(copy.medications, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF25164D))),
           const SizedBox(height: 12),
+          Text(
+            copy.isKorean ? '복용 중인 약만 직접 추가해서 체크 목록을 구성해 보세요.' : 'Add only the medicines you actually take to build your checklist.',
+            style: const TextStyle(color: Color(0xFF6C6192), height: 1.35),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -941,19 +1002,25 @@ class _MedicationManagerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: medications
-                .map((med) => Chip(
-                      label: Text(med.name),
-                      onDeleted: () => onRemoveMedication(med.name),
-                      deleteIconColor: const Color(0xFF6C6192),
-                      backgroundColor: const Color(0xFFF2ECFF),
-                      side: BorderSide.none,
-                    ))
-                .toList(),
-          ),
+          if (medications.isEmpty)
+            Text(
+              copy.isKorean ? '아직 추가된 약이 없습니다.' : 'No medications added yet.',
+              style: const TextStyle(color: Color(0xFF7B74A3)),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: medications
+                  .map((med) => Chip(
+                        label: Text(med.name),
+                        onDeleted: () => onRemoveMedication(med.name),
+                        deleteIconColor: const Color(0xFF6C6192),
+                        backgroundColor: const Color(0xFFF2ECFF),
+                        side: BorderSide.none,
+                      ))
+                  .toList(),
+            ),
           const SizedBox(height: 8),
           Text('${copy.medsCountSetting}: ${copy.countLabel(medications.length)}', style: const TextStyle(color: Color(0xFF7B74A3))),
         ],
@@ -1062,15 +1129,14 @@ class _MiniStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 154,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 40,
@@ -1078,7 +1144,15 @@ class _MiniStatCard extends StatelessWidget {
                 decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
                 child: Icon(icon, color: color),
               ),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF6C6192))),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF6C6192), height: 1.2),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1104,12 +1178,40 @@ class _StatsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28)),
-      child: Row(
-        children: [
-          Expanded(child: _MiniStatCard(title: copy.sevenDaySuccess, value: copy.rateText(rate), subtitle: copy.adherenceStats, color: const Color(0xFF7A5AF8), icon: Icons.query_stats_rounded)),
-          const SizedBox(width: 12),
-          Expanded(child: _MiniStatCard(title: copy.missedCount, value: '$skipped', subtitle: '${copy.checkedToday} $checkedToday', color: const Color(0xFFB45AF8), icon: Icons.history_toggle_off_rounded)),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 420;
+          final first = _MiniStatCard(
+            title: copy.sevenDaySuccess,
+            value: copy.rateText(rate),
+            subtitle: copy.adherenceStats,
+            color: const Color(0xFF7A5AF8),
+            icon: Icons.query_stats_rounded,
+          );
+          final second = _MiniStatCard(
+            title: copy.missedCount,
+            value: '$skipped',
+            subtitle: '${copy.checkedToday} $checkedToday',
+            color: const Color(0xFFB45AF8),
+            icon: Icons.history_toggle_off_rounded,
+          );
+          if (compact) {
+            return Column(
+              children: [
+                first,
+                const SizedBox(height: 12),
+                second,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: first),
+              const SizedBox(width: 12),
+              Expanded(child: second),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1295,25 +1397,3 @@ class _RingPainter extends CustomPainter {
   bool shouldRepaint(covariant _RingPainter oldDelegate) => oldDelegate.progress != progress;
 }
 
-class _GlassBadge extends StatelessWidget {
-  const _GlassBadge({required this.text, this.multiline = false});
-
-  final String text;
-  final bool multiline;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(maxWidth: multiline ? 170 : double.infinity),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(999)),
-      child: Text(
-        text,
-        textAlign: multiline ? TextAlign.center : TextAlign.start,
-        maxLines: multiline ? 2 : 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, height: 1.2),
-      ),
-    );
-  }
-}

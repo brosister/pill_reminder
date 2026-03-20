@@ -201,10 +201,7 @@ class MedicationLogService {
 
     final medsRaw = prefs.getString(_medicationNamesKey);
     final medications = medsRaw == null
-        ? const [
-            MedicationItemState(name: '비타민', takenToday: false, skippedToday: false),
-            MedicationItemState(name: '영양제', takenToday: false, skippedToday: false),
-          ]
+        ? const <MedicationItemState>[]
         : (jsonDecode(medsRaw) as List)
             .map((e) => MedicationItemState.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
