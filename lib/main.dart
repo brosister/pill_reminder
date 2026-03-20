@@ -63,7 +63,11 @@ class AppCopy {
   String get emptyLog => isKorean ? '아직 기록이 없습니다.' : 'No medication logs yet.';
   String get goalReached => isKorean ? '오늘 복약 목표를 채웠습니다.' : 'You completed today\'s medication goal.';
   String get currentCycle => isKorean ? '복약 회차 설정' : 'Dose Cycle Settings';
-  String get nextReminder => isKorean ? '다음 알림' : 'Next Reminder';
+  String get nextReminder => isKorean ? '다음 회차' : 'Next Dose';
+  String get doseTimeline => isKorean ? '오늘 복약 타임라인' : 'Today's Dose Timeline';
+  String get completedState => isKorean ? '완료' : 'Done';
+  String get pendingState => isKorean ? '예정' : 'Pending';
+  String get skippedState => isKorean ? '건너뜀' : 'Skipped';
   String get takenLabel => isKorean ? '복용 완료' : 'Taken';
   String get skippedLabel => isKorean ? '건너뜀' : 'Skipped';
   String get sevenDaySuccess => isKorean ? '최근 7일 성공률' : '7-day success rate';
@@ -101,6 +105,18 @@ class AppCopy {
       : '$doses doses · every $hours hours · starts ${hourLabel(startHour)}';
 
   String completionText(int taken, int total) => isKorean ? '$taken / $total회 완료' : '$taken / $total completed';
+  String doseSlotLabel(int index) {
+    if (isKorean) {
+      switch (index) {
+        case 0: return '1회차';
+        case 1: return '2회차';
+        case 2: return '3회차';
+        case 3: return '4회차';
+        default: return '${index + 1}회차';
+      }
+    }
+    return 'Dose ${index + 1}';
+  }
   String rateText(int rate) => isKorean ? '$rate% 달성' : '$rate% completed';
   String logTakenAt(String time, List<String> names) => isKorean ? '$time · ${names.join(', ')} 복용 완료' : '$time · ${names.join(', ')} taken';
   String logSkippedAt(String time, List<String> names) => isKorean ? '$time · ${names.join(', ')} 건너뜀' : '$time · ${names.join(', ')} skipped';
@@ -407,7 +423,13 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
   }
 
   double get _progress => (_takenDoses / (_dailyDoseGoal == 0 ? 1 : _dailyDoseGoal)).clamp(0.0, 1.0);
-  String _nextReminderLabel(AppCopy copy) => copy.hourLabel(math.min(23, _startHourValue + (_takenDoses * _intervalHours)));
+  String _nextReminderLabel(AppCopy copy) {
+    if (_takenDoses >= _dailyDoseGoal) return copy.goalReached;
+    final hour = math.min(23, _startHourValue + (_takenDoses * _intervalHours));
+    return copy.hourLabel(hour);
+  }
+
+  List<int> _doseHours() => List.generate(_dailyDoseGoal, (index) => math.min(23, _startHourValue + (_intervalHours * index)));
   int get _sevenDayTaken => _history.fold(0, (sum, item) => sum + item.takenCount);
   int get _sevenDayGoal => _history.fold(0, (sum, item) => sum + item.goalCount);
   int get _sevenDaySkipped => _history.fold(0, (sum, item) => sum + item.skippedCount);
@@ -435,6 +457,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
         dailyDoseGoal: _dailyDoseGoal,
         progress: _progress,
         nextReminder: _nextReminderLabel(copy),
+        doseHours: _doseHours(),
         medications: _medications,
         onApplyPlan: _applyPlan,
         onMarkCycleTaken: () => _markWholeCycle(false),
@@ -522,6 +545,7 @@ class _HomeTab extends StatelessWidget {
     required this.dailyDoseGoal,
     required this.progress,
     required this.nextReminder,
+    required this.doseHours,
     required this.medications,
     required this.onApplyPlan,
     required this.onMarkCycleTaken,
@@ -537,6 +561,7 @@ class _HomeTab extends StatelessWidget {
   final int dailyDoseGoal;
   final double progress;
   final String nextReminder;
+  final List<int> doseHours;
   final List<MedicationItemState> medications;
   final ValueChanged<int> onApplyPlan;
   final VoidCallback onMarkCycleTaken;
@@ -552,6 +577,8 @@ class _HomeTab extends StatelessWidget {
           Text(copy.subtitle, style: const TextStyle(color: Color(0xFF6C6192))),
           const SizedBox(height: 18),
           _HeroCard(copy: copy, takenDoses: takenDoses, dailyDoseGoal: dailyDoseGoal, progress: progress, nextReminder: nextReminder),
+          const SizedBox(height: 18),
+          _DoseTimelineCard(copy: copy, takenDoses: takenDoses, doseHours: doseHours),
           const SizedBox(height: 18),
           _ActionCard(copy: copy, onAddDose: onMarkCycleTaken, onSkipDose: onMarkCycleSkipped),
           const SizedBox(height: 18),
@@ -683,6 +710,58 @@ class _SettingsTab extends StatelessWidget {
   }
 }
 
+
+class _DoseTimelineCard extends StatelessWidget {
+  const _DoseTimelineCard({required this.copy, required this.takenDoses, required this.doseHours});
+
+  final AppCopy copy;
+  final int takenDoses;
+  final List<int> doseHours;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(copy.doseTimeline, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF25164D))),
+          const SizedBox(height: 14),
+          ...List.generate(doseHours.length, (index) {
+            final done = index < takenDoses;
+            final state = done ? copy.completedState : copy.pendingState;
+            final dotColor = done ? const Color(0xFF7A5AF8) : const Color(0xFFD7CCF7);
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: const Color(0xFFF7F2FF), borderRadius: BorderRadius.circular(18)),
+              child: Row(
+                children: [
+                  Container(width: 12, height: 12, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(copy.doseSlotLabel(index), style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF25164D))),
+                        const SizedBox(height: 4),
+                        Text(copy.hourLabel(doseHours[index]), style: const TextStyle(color: Color(0xFF7B74A3))),
+                      ],
+                    ),
+                  ),
+                  Text(state, style: TextStyle(color: done ? const Color(0xFF5B3CD0) : const Color(0xFF9A8FC3), fontWeight: FontWeight.w700)),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
 class _HeroCard extends StatelessWidget {
   const _HeroCard({required this.copy, required this.takenDoses, required this.dailyDoseGoal, required this.progress, required this.nextReminder});
 
@@ -691,6 +770,7 @@ class _HeroCard extends StatelessWidget {
   final int dailyDoseGoal;
   final double progress;
   final String nextReminder;
+  final List<int> doseHours;
 
   @override
   Widget build(BuildContext context) {
