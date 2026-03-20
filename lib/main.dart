@@ -62,12 +62,6 @@ class AppCopy {
   String get adherenceStats => isKorean ? '복약 통계' : 'Adherence Stats';
   String get emptyLog => isKorean ? '아직 기록이 없습니다.' : 'No medication logs yet.';
   String get goalReached => isKorean ? '오늘 복약 목표를 채웠습니다.' : 'You completed today\'s medication goal.';
-  String get bannerPlaceholder => isKorean
-      ? ''
-      : '';
-  String get adHint => isKorean
-      ? ''
-      : '';
   String get currentCycle => isKorean ? '현재 복약 사이클' : 'Current Medication Cycle';
   String get nextReminder => isKorean ? '다음 알림' : 'Next Reminder';
   String get takenLabel => isKorean ? '복용 완료' : 'Taken';
@@ -893,13 +887,6 @@ class _MedicationManagerCard extends StatelessWidget {
   }
 }
 
-class _HistoryTabPlaceholder extends StatelessWidget {
-  const _HistoryTabPlaceholder();
-
-  @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
-}
-
 class _ReminderStatusCard extends StatelessWidget {
   const _ReminderStatusCard({required this.copy, required this.enabled, required this.intervalHours, required this.onChanged});
 
@@ -1133,33 +1120,6 @@ class _PickerTile extends StatelessWidget {
               if (v != null) onChanged(v);
             },
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InsightCard extends StatelessWidget {
-  const _InsightCard({required this.copy});
-
-  final AppCopy copy;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: const Color(0xFF25164D), borderRadius: BorderRadius.circular(28)),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(16)),
-            child: const Icon(Icons.insights_rounded, color: Colors.white),
-          ),
-          const SizedBox(width: 14),
-          Expanded(child: Text(copy.notificationGuide, style: const TextStyle(color: Colors.white, height: 1.5, fontWeight: FontWeight.w600))),
         ],
       ),
     );
