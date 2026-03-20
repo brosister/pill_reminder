@@ -42,7 +42,7 @@ class AppCopy {
   String get historyTab => isKorean ? '기록' : 'History';
   String get settingsTab => isKorean ? '설정' : 'Settings';
   String get todayChecklist => isKorean ? '오늘 복약 현황' : 'Today Checklist';
-  String get medications => isKorean ? '약별 체크' : 'Medication Checklist';
+  String get medications => isKorean ? '약 목록 기록' : 'Medication Records';
   String get quickPlans => isKorean ? '빠른 복약 플랜' : 'Quick Plans';
   String get settingsTitle => isKorean ? '복약 설정' : 'Medication Settings';
   String get reminderStatus => isKorean ? '백그라운드 알림' : 'Background Reminders';
@@ -50,8 +50,8 @@ class AppCopy {
   String get reminderOff => isKorean ? '현재 복약 알림이 꺼져 있습니다.' : 'Medication reminders are currently turned off.';
   String get reminderPermissionDenied => isKorean ? '알림 권한이 없어 복약 알림을 켤 수 없습니다.' : 'Notification permission was denied, so reminders could not be enabled.';
   String get reminderSaved => isKorean ? '복약 알림 일정이 저장되었습니다.' : 'Medication reminder schedule saved.';
-  String get addDose => isKorean ? '전체 복용 체크' : 'Mark Cycle as Taken';
-  String get skipDose => isKorean ? '이번 회차 건너뛰기' : 'Skip This Cycle';
+  String get addDose => isKorean ? '이번 회차 복용 완료' : 'Complete This Dose Cycle';
+  String get skipDose => isKorean ? '이번 회차 건너뛰기' : 'Skip This Dose Cycle';
   String get resetToday => isKorean ? '오늘 초기화' : 'Reset Today';
   String get doseGoal => isKorean ? '하루 복약 횟수' : 'Daily Dose Goal';
   String get reminderInterval => isKorean ? '복약 간격' : 'Reminder Interval';
@@ -62,13 +62,13 @@ class AppCopy {
   String get adherenceStats => isKorean ? '복약 통계' : 'Adherence Stats';
   String get emptyLog => isKorean ? '아직 기록이 없습니다.' : 'No medication logs yet.';
   String get goalReached => isKorean ? '오늘 복약 목표를 채웠습니다.' : 'You completed today\'s medication goal.';
-  String get currentCycle => isKorean ? '현재 복약 사이클' : 'Current Medication Cycle';
+  String get currentCycle => isKorean ? '복약 회차 설정' : 'Dose Cycle Settings';
   String get nextReminder => isKorean ? '다음 알림' : 'Next Reminder';
   String get takenLabel => isKorean ? '복용 완료' : 'Taken';
   String get skippedLabel => isKorean ? '건너뜀' : 'Skipped';
   String get sevenDaySuccess => isKorean ? '최근 7일 성공률' : '7-day success rate';
   String get missedCount => isKorean ? '최근 7일 건너뜀' : '7-day skipped';
-  String get checkedToday => isKorean ? '오늘 체크한 약' : 'Checked today';
+  String get checkedToday => isKorean ? '오늘 체크한 약 종류' : 'Checked medications';
   String get medsCountSetting => isKorean ? '등록된 약 개수' : 'Saved medications';
   String get notificationGuide => isKorean ? '리마인더는 설정값 기준으로 다시 예약됩니다.' : 'Reminders are rescheduled based on your current settings.';
   String doses(int value) => isKorean ? '$value회' : '$value doses';
@@ -353,7 +353,6 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       if (index >= 0) {
         _medications[index] = _medications[index].copyWith(takenToday: taken, skippedToday: !taken);
       }
-      _takenDoses = _medications.where((m) => m.takenToday).length;
       _logs.insert(
         0,
         DoseLog(
@@ -366,27 +365,17 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       if (_logs.length > 20) _logs.removeLast();
     });
     await _persistMedicationState();
-    if (taken && _takenDoses >= _dailyDoseGoal) {
-      _interstitialAd?.show();
-      _interstitialAd = null;
-      _loadInterstitial();
-    }
   }
 
   Future<void> _markWholeCycle(bool skipped) async {
     final copy = AppCopy.of(context);
     final now = TimeOfDay.now();
     final time = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    final pending = _medications.where((m) => !m.takenToday && !m.skippedToday).toList();
-    if (pending.isEmpty) return;
-    final names = pending.map((m) => m.name).toList();
+    final names = _medications.map((m) => m.name).toList();
     setState(() {
-      for (var i = 0; i < _medications.length; i++) {
-        if (!_medications[i].takenToday && !_medications[i].skippedToday) {
-          _medications[i] = _medications[i].copyWith(takenToday: !skipped, skippedToday: skipped);
-        }
+      if (!skipped && _takenDoses < _dailyDoseGoal) {
+        _takenDoses += 1;
       }
-      _takenDoses = _medications.where((m) => m.takenToday).length;
       _logs.insert(
         0,
         DoseLog(
@@ -399,6 +388,11 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       if (_logs.length > 20) _logs.removeLast();
     });
     await _persistMedicationState();
+    if (!skipped && _takenDoses >= _dailyDoseGoal) {
+      _interstitialAd?.show();
+      _interstitialAd = null;
+      _loadInterstitial();
+    }
   }
 
   Future<void> _resetToday() async {
