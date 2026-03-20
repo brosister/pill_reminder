@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'services/ad_config_service.dart';
+import 'services/medication_log_service.dart';
 import 'services/reminder_service.dart';
 
 Future<void> main() async {
@@ -45,6 +46,9 @@ class AppCopy {
   String get reminderInterval => isKorean ? '복약 간격' : 'Reminder Interval';
   String get startHour => isKorean ? '시작 시간' : 'Start Time';
   String get recentLog => isKorean ? '최근 복약 기록' : 'Recent Medication Log';
+  String get medications => isKorean ? '복약 목록' : 'Medication List';
+  String get medicationHint => isKorean ? '예: 비타민 D, 감기약, 항생제' : 'e.g. Vitamin D, cold medicine, antibiotics';
+  String get addMedication => isKorean ? '약 추가' : 'Add Medication';
   String get adherenceInsight => isKorean ? '복약 리듬 인사이트' : 'Adherence Insight';
   String get emptyLog => isKorean ? '아직 기록이 없습니다.' : 'No medication logs yet.';
   String get goalReached => isKorean ? '오늘 복약 목표를 채웠습니다.' : 'You completed today\'s medication goal.';
@@ -107,10 +111,11 @@ class PillPlan {
 }
 
 class DoseLog {
-  const DoseLog({required this.title, required this.time, required this.skipped});
+  const DoseLog({required this.title, required this.time, required this.skipped, required this.medicationNames});
   final String title;
   final String time;
   final bool skipped;
+  final List<String> medicationNames;
 }
 
 class PillReminderApp extends StatelessWidget {
@@ -168,6 +173,8 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
   int _startHourValue = 8;
   bool _remindersEnabled = false;
   final List<DoseLog> _logs = [];
+  final List<String> _medicationNames = [];
+  final TextEditingController _medicationController = TextEditingController();
 
   List<int> get _doseOptions {
     final values = {1, 2, 3, 4, 5, 6, ...plans.map((plan) => plan.dailyDoses), _dailyDoseGoal}.toList()..sort();
@@ -188,7 +195,46 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
   void initState() {
     super.initState();
     _initAds();
+    _loadMedicationState();
     _loadReminderSettings();
+  }
+
+  Future<void> _loadMedicationState() async {
+    final snapshot = await MedicationLogService.instance.load();
+    if (!mounted) return;
+    setState(() {
+      _selectedPlan = snapshot.selectedPlan;
+      _takenDoses = snapshot.takenDoses;
+      _dailyDoseGoal = snapshot.dailyDoseGoal;
+      _intervalHours = snapshot.intervalHours;
+      _startHourValue = snapshot.startHour;
+      _medicationNames
+        ..clear()
+        ..addAll(snapshot.medicationNames);
+      _logs
+        ..clear()
+        ..addAll(snapshot.logs.map((log) => DoseLog(title: log.title, time: log.time, skipped: log.skipped, medicationNames: log.medicationNames)));
+    });
+  }
+
+  Future<void> _persistMedicationState() async {
+    await MedicationLogService.instance.saveState(
+      takenDoses: _takenDoses,
+      dailyDoseGoal: _dailyDoseGoal,
+      intervalHours: _intervalHours,
+      startHour: _startHourValue,
+      selectedPlan: _selectedPlan,
+      medicationNames: List<String>.from(_medicationNames),
+      logs: _logs
+          .map((log) => MedicationLogEntry(
+                title: log.title,
+                time: log.time,
+                skipped: log.skipped,
+                medicationNames: log.medicationNames,
+                dateKey: MedicationLogService.instance.todayKey(),
+              ))
+          .toList(),
+    );
   }
 
   Future<void> _loadReminderSettings() async {
@@ -272,9 +318,27 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       _intervalHours = plan.intervalHours;
       _startHourValue = plan.startHour;
     });
+    _persistMedicationState();
     if (_remindersEnabled) {
       _syncReminderSchedule();
     }
+  }
+
+  Future<void> _addMedicationName() async {
+    final value = _medicationController.text.trim();
+    if (value.isEmpty) return;
+    setState(() {
+      if (!_medicationNames.contains(value)) {
+        _medicationNames.add(value);
+      }
+      _medicationController.clear();
+    });
+    await _persistMedicationState();
+  }
+
+  Future<void> _removeMedicationName(String name) async {
+    setState(() => _medicationNames.remove(name));
+    await _persistMedicationState();
   }
 
   void _addDose(AppCopy copy, {required bool skipped}) {
@@ -287,9 +351,11 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
         title: skipped ? copy.logSkippedAt(time) : copy.logTakenAt(time),
         time: time,
         skipped: skipped,
+        medicationNames: List<String>.from(_medicationNames),
       ));
       if (_logs.length > 8) _logs.removeLast();
     });
+    _persistMedicationState();
     if (!skipped && next >= _dailyDoseGoal) {
       _interstitialAd?.show();
       _interstitialAd = null;
@@ -302,6 +368,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       _takenDoses = 0;
       _logs.clear();
     });
+    _persistMedicationState();
   }
 
   double get _progress => (_takenDoses / _dailyDoseGoal).clamp(0.0, 1.0);
@@ -313,6 +380,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
 
   @override
   void dispose() {
+    _medicationController.dispose();
     _bannerAd?.dispose();
     _interstitialAd?.dispose();
     super.dispose();
@@ -347,6 +415,14 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
                       onAddDose: () => _addDose(copy, skipped: false),
                       onSkipDose: () => _addDose(copy, skipped: true),
                       onResetToday: _resetToday,
+                    ),
+                    const SizedBox(height: 18),
+                    _MedicationNamesCard(
+                      copy: copy,
+                      medicationNames: _medicationNames,
+                      controller: _medicationController,
+                      onAdd: _addMedicationName,
+                      onRemove: _removeMedicationName,
                     ),
                     const SizedBox(height: 18),
                     _ReminderStatusCard(
@@ -416,14 +492,17 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
                       startHourOptions: _startHourOptions,
                       onDoseChanged: (value) async {
                         setState(() => _dailyDoseGoal = value);
+                        await _persistMedicationState();
                         if (_remindersEnabled) await _syncReminderSchedule();
                       },
                       onIntervalChanged: (value) async {
                         setState(() => _intervalHours = value);
+                        await _persistMedicationState();
                         if (_remindersEnabled) await _syncReminderSchedule();
                       },
                       onStartHourChanged: (value) async {
                         setState(() => _startHourValue = value);
+                        await _persistMedicationState();
                         if (_remindersEnabled) await _syncReminderSchedule();
                       },
                     ),
@@ -903,6 +982,72 @@ class _AdSlotPreview extends StatelessWidget {
       child: hasRealBanner
           ? SizedBox(height: bannerAd!.size.height.toDouble(), width: bannerAd!.size.width.toDouble(), child: AdWidget(ad: bannerAd!))
           : Row(children: [const Icon(Icons.campaign_outlined, color: Color(0xFF8F80BF)), const SizedBox(width: 10), Expanded(child: Text(copy.bannerPlaceholder, style: const TextStyle(color: Color(0xFF6C6192), fontWeight: FontWeight.w600)))]),
+    );
+  }
+}
+
+class _MedicationNamesCard extends StatelessWidget {
+  const _MedicationNamesCard({
+    required this.copy,
+    required this.medicationNames,
+    required this.controller,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final AppCopy copy;
+  final List<String> medicationNames;
+  final TextEditingController controller;
+  final Future<void> Function() onAdd;
+  final Future<void> Function(String) onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(copy.medications, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF25164D))),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    hintText: copy.medicationHint,
+                    filled: true,
+                    fillColor: const Color(0xFFF7F2FF),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  ),
+                  onSubmitted: (_) => onAdd(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              FilledButton(onPressed: onAdd, child: Text(copy.addMedication)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (medicationNames.isEmpty)
+            Text(copy.emptyLog, style: const TextStyle(color: Color(0xFF7B74A3)))
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: medicationNames
+                  .map((name) => Chip(
+                        label: Text(name),
+                        onDeleted: () => onRemove(name),
+                        deleteIconColor: const Color(0xFF6C6192),
+                        backgroundColor: const Color(0xFFF2ECFF),
+                        side: BorderSide.none,
+                      ))
+                  .toList(),
+            ),
+        ],
+      ),
     );
   }
 }
