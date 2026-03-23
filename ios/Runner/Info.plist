@@ -45,8 +45,6 @@
 	<true/>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-1472588829285826~2479484050</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>맞춤형 광고 제공 및 광고 성과 측정을 위해 기기 식별자를 사용할 수 있습니다.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 </dict>
