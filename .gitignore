@@ -13,3 +13,7 @@ build/
 android/.kotlin/
 
 pubspec.lock
+
+# Android release signing (local only)
+android/key.properties
+android/upload-keystore.jks
