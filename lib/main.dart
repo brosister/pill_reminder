@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -10,8 +11,7 @@ import 'services/ad_config_service.dart';
 import 'services/medication_log_service.dart';
 import 'services/reminder_service.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+Future<void> _warmUpServices() async {
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -23,6 +23,11 @@ Future<void> main() async {
   if (!kIsWeb) {
     await MobileAds.instance.initialize();
   }
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  unawaited(_warmUpServices());
   runApp(const PillReminderApp());
 }
 
