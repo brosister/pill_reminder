@@ -35,7 +35,7 @@ android {
             if (hasReleaseSigning) {
                 val storeFilePath = keystoreProperties.getProperty("storeFile")
                 if (!storeFilePath.isNullOrBlank()) {
-                    storeFile = file(storeFilePath)
+                    storeFile = rootProject.file(storeFilePath)
                 }
                 storePassword = keystoreProperties.getProperty("storePassword")
                 keyAlias = keystoreProperties.getProperty("keyAlias")
