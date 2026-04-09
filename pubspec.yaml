@@ -1,7 +1,7 @@
 name: pill_reminder
 description: "Pill Reminder - medication tracker with server-driven AdMob config."
 publish_to: 'none'
-version: 1.0.0+2
+version: 1.0.1+3
 
 environment:
   sdk: ^3.9.2
@@ -16,6 +16,7 @@ dependencies:
   http: ^1.5.0
   google_mobile_ads: ^6.0.0
   flutter_local_notifications: ^18.0.1
+  fluttertoast: ^8.2.8
   shared_preferences: ^2.3.3
   timezone: ^0.9.4
 

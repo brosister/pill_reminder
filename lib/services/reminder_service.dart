@@ -82,7 +82,7 @@ class ReminderService {
   Future<ReminderSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     return ReminderSettings(
-      enabled: prefs.getBool(_enabledKey) ?? false,
+      enabled: prefs.getBool(_enabledKey) ?? true,
       intervalHours: prefs.getInt(_intervalKey) ?? 8,
       startHour: prefs.getInt(_startHourKey) ?? 8,
       endHour: prefs.getInt(_endHourKey) ?? 20,
@@ -119,7 +119,7 @@ class ReminderService {
     final title = isKorean ? '복약 시간입니다' : 'Time to take your medication';
     final body = isKorean
         ? '앱을 닫아도 계속 알려드릴게요. 복용 후 체크해보세요.'
-        : 'Your scheduled reminder is still active. Take your dose and mark it when you are done.';
+        : 'You will keep getting reminders even when the app is closed. Take your dose and check it off.';
 
     const details = NotificationDetails(
       android: AndroidNotificationDetails(

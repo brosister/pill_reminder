@@ -102,6 +102,7 @@ class MedicationSnapshot {
   const MedicationSnapshot({
     required this.dateKey,
     required this.takenDoses,
+    required this.cycleStatuses,
     required this.dailyDoseGoal,
     required this.intervalHours,
     required this.startHour,
@@ -113,6 +114,7 @@ class MedicationSnapshot {
 
   final String dateKey;
   final int takenDoses;
+  final List<String> cycleStatuses;
   final int dailyDoseGoal;
   final int intervalHours;
   final int startHour;
@@ -128,6 +130,7 @@ class MedicationLogService {
 
   static const _dateKeyStorage = 'pill_reminder_current_date';
   static const _takenDosesKey = 'pill_reminder_taken_doses';
+  static const _cycleStatusesKey = 'pill_reminder_cycle_statuses';
   static const _dailyDoseGoalKey = 'pill_reminder_daily_goal';
   static const _intervalKey = 'pill_reminder_interval_hours_local';
   static const _startHourKey = 'pill_reminder_start_hour_local';
@@ -135,6 +138,9 @@ class MedicationLogService {
   static const _medicationNamesKey = 'pill_reminder_medications';
   static const _logsKey = 'pill_reminder_logs';
   static const _historyKey = 'pill_reminder_history';
+  static const _emptyMedicationWarningDismissedKey =
+      'pill_reminder_empty_medication_warning_dismissed';
+  static const _maxStoredLogs = 120;
 
   String todayKey([DateTime? now]) {
     final date = now ?? DateTime.now();
@@ -151,13 +157,20 @@ class MedicationLogService {
 
     final taken = prefs.getInt(_takenDosesKey) ?? 0;
     final goal = prefs.getInt(_dailyDoseGoalKey) ?? 0;
+    final rawCycleStatuses = prefs.getString(_cycleStatusesKey);
+    final cycleStatuses = rawCycleStatuses == null
+        ? const <String>[]
+        : (jsonDecode(rawCycleStatuses) as List)
+            .map((e) => e.toString())
+            .toList();
     final medicationsRaw = prefs.getString(_medicationNamesKey);
     final medications = medicationsRaw == null
         ? <MedicationItemState>[]
         : (jsonDecode(medicationsRaw) as List)
             .map((e) => MedicationItemState.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
-    final skippedCount = medications.where((m) => m.skippedToday).length;
+    final skippedCount =
+        cycleStatuses.where((status) => status == 'skipped').length;
 
     final historyRaw = prefs.getString(_historyKey);
     final history = historyRaw == null
@@ -182,7 +195,7 @@ class MedicationLogService {
     await prefs.setString(_historyKey, jsonEncode(trimmedHistory.map((e) => e.toJson()).toList()));
     await prefs.setString(_dateKeyStorage, currentDate);
     await prefs.setInt(_takenDosesKey, 0);
-    await prefs.setString(_logsKey, jsonEncode(<Map<String, dynamic>>[]));
+    await prefs.setString(_cycleStatusesKey, jsonEncode(<String>[]));
     await prefs.setString(_medicationNamesKey, jsonEncode(resetMeds.map((e) => e.toJson()).toList()));
   }
 
@@ -196,7 +209,7 @@ class MedicationLogService {
         ? <MedicationLogEntry>[]
         : (jsonDecode(rawLogs) as List)
             .map((e) => MedicationLogEntry.fromJson(Map<String, dynamic>.from(e as Map)))
-            .where((entry) => entry.dateKey == currentDate)
+            .take(_maxStoredLogs)
             .toList();
 
     final medsRaw = prefs.getString(_medicationNamesKey);
@@ -205,6 +218,7 @@ class MedicationLogService {
         : (jsonDecode(medsRaw) as List)
             .map((e) => MedicationItemState.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
+    final rawCycleStatuses = prefs.getString(_cycleStatusesKey);
 
     final historyRaw = prefs.getString(_historyKey);
     final history = historyRaw == null
@@ -216,6 +230,11 @@ class MedicationLogService {
     return MedicationSnapshot(
       dateKey: currentDate,
       takenDoses: prefs.getInt(_takenDosesKey) ?? 0,
+      cycleStatuses: rawCycleStatuses == null
+          ? const <String>[]
+          : (jsonDecode(rawCycleStatuses) as List)
+              .map((e) => e.toString())
+              .toList(),
       dailyDoseGoal: prefs.getInt(_dailyDoseGoalKey) ?? 3,
       intervalHours: prefs.getInt(_intervalKey) ?? 8,
       startHour: prefs.getInt(_startHourKey) ?? 8,
@@ -228,6 +247,7 @@ class MedicationLogService {
 
   Future<void> saveState({
     required int takenDoses,
+    required List<String> cycleStatuses,
     required int dailyDoseGoal,
     required int intervalHours,
     required int startHour,
@@ -239,12 +259,26 @@ class MedicationLogService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_dateKeyStorage, todayKey());
     await prefs.setInt(_takenDosesKey, takenDoses);
+    await prefs.setString(_cycleStatusesKey, jsonEncode(cycleStatuses));
     await prefs.setInt(_dailyDoseGoalKey, dailyDoseGoal);
     await prefs.setInt(_intervalKey, intervalHours);
     await prefs.setInt(_startHourKey, startHour);
     await prefs.setInt(_selectedPlanKey, selectedPlan);
     await prefs.setString(_medicationNamesKey, jsonEncode(medications.map((e) => e.toJson()).toList()));
-    await prefs.setString(_logsKey, jsonEncode(logs.map((e) => e.toJson()).toList()));
+    await prefs.setString(
+      _logsKey,
+      jsonEncode(logs.take(_maxStoredLogs).map((e) => e.toJson()).toList()),
+    );
     await prefs.setString(_historyKey, jsonEncode(history.map((e) => e.toJson()).toList()));
+  }
+
+  Future<bool> loadEmptyMedicationWarningDismissed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_emptyMedicationWarningDismissedKey) ?? false;
+  }
+
+  Future<void> saveEmptyMedicationWarningDismissed(bool dismissed) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_emptyMedicationWarningDismissedKey, dismissed);
   }
 }
