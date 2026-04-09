@@ -274,35 +274,38 @@ class _MedicationManagerCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: TextField(
-                  controller: controller,
-                  minLines: 1,
-                  maxLines: 1,
-                  decoration: InputDecoration(
-                    hintText: copy.medicationHint,
-                    filled: true,
-                    fillColor: const Color(0xFFF7F2FF),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 18,
+                child: SizedBox(
+                  height: 56,
+                  child: TextField(
+                    controller: controller,
+                    minLines: 1,
+                    maxLines: 1,
+                    decoration: InputDecoration(
+                      hintText: copy.medicationHint,
+                      filled: true,
+                      fillColor: const Color(0xFFF7F2FF),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 18,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide.none,
-                    ),
+                    onSubmitted: (_) => onAddMedication(),
                   ),
-                  onSubmitted: (_) => onAddMedication(),
                 ),
               ),
               const SizedBox(width: 10),
               SizedBox(
-                height: double.infinity,
+                height: 56,
                 child: FilledButton(
                   onPressed: onAddMedication,
                   style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 56),
                     padding: const EdgeInsets.symmetric(horizontal: 18),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
