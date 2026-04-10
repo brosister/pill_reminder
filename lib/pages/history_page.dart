@@ -28,11 +28,6 @@ class PillHistoryPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionIntro(
-              description: copy.historyHint,
-              icon: Icons.history_rounded,
-            ),
-            const SizedBox(height: 18),
             MedicationLogCard(
               copy: copy,
               logs: logs,
