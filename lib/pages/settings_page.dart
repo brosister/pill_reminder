@@ -64,6 +64,23 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
   }
 
   @override
+  void didUpdateWidget(covariant PillSettingsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.remindersEnabled != widget.remindersEnabled) {
+      _remindersEnabled = widget.remindersEnabled;
+    }
+    if (oldWidget.intervalHours != widget.intervalHours) {
+      _intervalHours = widget.intervalHours;
+    }
+    if (oldWidget.startHourValue != widget.startHourValue) {
+      _startHourValue = widget.startHourValue;
+    }
+    if (oldWidget.dailyDoseGoal != widget.dailyDoseGoal) {
+      _dailyDoseGoal = widget.dailyDoseGoal;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BottomBannerPageScaffold(
       title: widget.copy.settingsTitle,
@@ -86,8 +103,16 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
               copy: widget.copy,
               medications: widget.medications,
               controller: widget.medicationController,
-              onAddMedication: widget.onAddMedication,
-              onRemoveMedication: widget.onRemoveMedication,
+              onAddMedication: () async {
+                await widget.onAddMedication();
+                if (!mounted) return;
+                setState(() {});
+              },
+              onRemoveMedication: (name) async {
+                await widget.onRemoveMedication(name);
+                if (!mounted) return;
+                setState(() {});
+              },
             ),
             const SizedBox(height: 18),
             _ReminderStatusCard(

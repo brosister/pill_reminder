@@ -196,11 +196,7 @@ class _HeroDoseCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF7A5AF8), Color(0xFFB18FFF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF7A5AF8),
         borderRadius: BorderRadius.circular(32),
         boxShadow: const [
           BoxShadow(
