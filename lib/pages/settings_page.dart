@@ -24,6 +24,8 @@ class PillSettingsPage extends StatefulWidget {
     required this.onAddMedication,
     required this.onRemoveMedication,
     required this.onResetToday,
+    required this.onSeedKoreanPreviewData,
+    required this.onSeedEnglishPreviewData,
   });
 
   final AppCopy copy;
@@ -43,6 +45,8 @@ class PillSettingsPage extends StatefulWidget {
   final Future<void> Function() onAddMedication;
   final Future<void> Function(String) onRemoveMedication;
   final Future<void> Function() onResetToday;
+  final Future<void> Function() onSeedKoreanPreviewData;
+  final Future<void> Function() onSeedEnglishPreviewData;
 
   @override
   State<PillSettingsPage> createState() => _PillSettingsPageState();
@@ -94,11 +98,6 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionIntro(
-              description: widget.copy.settingsHint,
-              icon: Icons.tune_rounded,
-            ),
-            const SizedBox(height: 18),
             _MedicationManagerCard(
               copy: widget.copy,
               medications: widget.medications,
@@ -176,6 +175,32 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
                 },
                 icon: const Icon(Icons.refresh_rounded),
                 label: Text(widget.copy.resetToday),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () async {
+                  await widget.onSeedKoreanPreviewData();
+                  if (!mounted) return;
+                  setState(() {});
+                },
+                icon: const Icon(Icons.history_edu_rounded),
+                label: const Text('리셋 + 한글 테스트데이터 추가'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  await widget.onSeedEnglishPreviewData();
+                  if (!mounted) return;
+                  setState(() {});
+                },
+                icon: const Icon(Icons.translate_rounded),
+                label: const Text('리셋 + 영어 테스트데이터 추가'),
               ),
             ),
           ],

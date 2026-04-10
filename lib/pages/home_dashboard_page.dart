@@ -61,11 +61,6 @@ class HomeDashboardPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionIntro(
-              description: copy.headerSummary,
-              icon: Icons.medication_liquid_rounded,
-            ),
-            const SizedBox(height: 18),
             _CompactSummaryStrip(
               copy: copy,
               takenDoses: takenDoses,
@@ -196,15 +191,12 @@ class _HeroDoseCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF7A5AF8),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF7A5AF8), Color(0xFFB18FFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(32),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x337A5AF8),
-            blurRadius: 28,
-            offset: Offset(0, 14),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -981,15 +973,6 @@ class _PlanCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF25164D) : Colors.white,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: selected
-                  ? const Color(0x2625164D)
-                  : const Color(0x10000000),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

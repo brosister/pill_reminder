@@ -31,11 +31,6 @@ class StatsDashboardPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionIntro(
-              description: copy.statsHint,
-              icon: Icons.query_stats_rounded,
-            ),
-            const SizedBox(height: 18),
             LayoutBuilder(
               builder: (context, constraints) {
                 final first = MiniStatCard(

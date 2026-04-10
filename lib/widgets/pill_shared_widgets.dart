@@ -38,13 +38,6 @@ class SectionIntro extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 18,
-                offset: Offset(0, 8),
-              ),
-            ],
           ),
           child: Icon(icon, color: accentColor),
         ),
@@ -240,13 +233,6 @@ class PillBottomNav extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x14000000),
-                  blurRadius: 24,
-                  offset: Offset(0, 12),
-                ),
-              ],
             ),
             child: Row(
               children: List.generate(items.length, (index) {
