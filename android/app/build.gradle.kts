@@ -10,9 +10,18 @@ plugins {
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 val hasReleaseSigning = keystorePropertiesFile.exists()
+val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
 
 if (hasReleaseSigning) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
+fun requireReleaseSigning(key: String): String {
+    val value = keystoreProperties.getProperty(key)?.trim().orEmpty()
+    if (value.isEmpty()) {
+        throw GradleException("Release signing is required. Missing `$key` in ${keystorePropertiesFile.path}")
+    }
+    return value
 }
 
 android {
@@ -32,14 +41,22 @@ android {
 
     signingConfigs {
         create("release") {
+            if (isReleaseTask && !hasReleaseSigning) {
+                throw GradleException(
+                    "Release signing is required. Create `${keystorePropertiesFile.path}` (and a keystore file) before building release."
+                )
+            }
+
             if (hasReleaseSigning) {
-                val storeFilePath = keystoreProperties.getProperty("storeFile")
-                if (!storeFilePath.isNullOrBlank()) {
-                    storeFile = rootProject.file(storeFilePath)
+                val storeFilePath = requireReleaseSigning("storeFile")
+                val resolvedStoreFile = rootProject.file(storeFilePath)
+                if (isReleaseTask && !resolvedStoreFile.exists()) {
+                    throw GradleException("Release signing keystore file not found: ${resolvedStoreFile.path}")
                 }
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = resolvedStoreFile
+                storePassword = requireReleaseSigning("storePassword")
+                keyAlias = requireReleaseSigning("keyAlias")
+                keyPassword = requireReleaseSigning("keyPassword")
             }
         }
     }
