@@ -3,10 +3,10 @@ class AppConfig {
 
   static const String apiBaseUrl = 'https://app-master.officialsite.kr';
 
-  static const String prodBannerAdIdAndroid = '';
-  static const String prodInterstitialAdIdAndroid = '';
-  static const String prodBannerAdIdIOS = '';
-  static const String prodInterstitialAdIdIOS = '';
+  static const String prodBannerAdIdAndroid = 'ca-app-pub-1472588829285826/9948796374';
+  static const String prodInterstitialAdIdAndroid = 'ca-app-pub-1472588829285826/9289274640';
+  static const String prodBannerAdIdIOS = 'ca-app-pub-1472588829285826/2264833777';
+  static const String prodInterstitialAdIdIOS = 'ca-app-pub-1472588829285826/2783708520';
 
   static const String testBannerAdIdAndroid = 'ca-app-pub-3940256099942544/6300978111';
   static const String testInterstitialAdIdAndroid = 'ca-app-pub-3940256099942544/1033173712';
