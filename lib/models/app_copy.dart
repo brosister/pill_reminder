@@ -92,6 +92,9 @@ class AppCopy {
   String get missedCount => isKorean ? '최근 7일 건너뜀' : '7-day skipped';
   String get checkedToday => isKorean ? '오늘 체크한 약 종류' : 'Checked medications';
   String get medsCountSetting => isKorean ? '등록된 약 개수' : 'Saved medications';
+  String get trackerTitle => isKorean ? '복약 트래커' : 'Pill Tracker';
+  String get perDay => isKorean ? '하루' : 'Per day';
+  String get doseUnit => isKorean ? '회' : 'times';
   String get notificationGuide => isKorean
       ? '리마인더는 설정값 기준으로 다시 예약됩니다.'
       : 'Reminders are rescheduled based on your current settings.';
@@ -195,5 +198,33 @@ class AppCopy {
     const ko = ['월', '화', '수', '목', '금', '토', '일'];
     const en = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return (isKorean ? ko : en)[value.weekday - 1];
+  }
+
+  String weekdayLong(DateTime value) {
+    const ko = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+    const en = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return (isKorean ? ko : en)[value.weekday - 1];
+  }
+
+  String fullDate(DateTime value) {
+    if (isKorean) {
+      return '${value.year}년 ${value.month}월 ${value.day}일 ${weekdayLong(value)}';
+    }
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final month = months[value.month - 1];
+    return '${weekdayShort(value)}, $month ${value.day}, ${value.year}';
   }
 }

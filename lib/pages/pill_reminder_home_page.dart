@@ -12,7 +12,7 @@ import '../services/reminder_service.dart';
 import '../services/toast_service.dart';
 import '../widgets/pill_shared_widgets.dart';
 import 'history_page.dart';
-import 'home_dashboard_page.dart';
+import 'pill_tracker_page.dart';
 import 'settings_page.dart';
 import 'stats_dashboard_page.dart';
 
@@ -73,7 +73,6 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
   int _intervalHours = 8;
   int _startHourValue = 8;
   bool _remindersEnabled = false;
-  bool _emptyMedicationWarningDismissed = false;
   final List<DoseLog> _logs = [];
   final List<MedicationItemState> _medications = [];
   final List<DailyMedicationSummary> _history = [];
@@ -117,8 +116,6 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
 
   Future<void> _loadMedicationState() async {
     final snapshot = await MedicationLogService.instance.load();
-    final emptyMedicationWarningDismissed =
-        await MedicationLogService.instance.loadEmptyMedicationWarningDismissed();
     if (!mounted) return;
     setState(() {
       _selectedPlan = snapshot.selectedPlan;
@@ -149,7 +146,6 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       _history
         ..clear()
         ..addAll(snapshot.history);
-      _emptyMedicationWarningDismissed = emptyMedicationWarningDismissed;
     });
   }
 
@@ -273,21 +269,6 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
     return _remindersEnabled;
   }
 
-  void _applyPlan(int index) {
-    final plan = plans[index];
-    setState(() {
-      _selectedPlan = index;
-      _dailyDoseGoal = plan.dailyDoses;
-      _intervalHours = plan.intervalHours;
-      _startHourValue = plan.startHour;
-      _normalizeCycleProgress();
-    });
-    _persistMedicationState();
-    if (_remindersEnabled) {
-      _syncReminderSchedule();
-    }
-  }
-
   Future<void> _addMedicationName() async {
     final value = _medicationController.text.trim();
     if (value.isEmpty) return;
@@ -309,125 +290,6 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
   Future<void> _removeMedicationName(String name) async {
     setState(() => _medications.removeWhere((m) => m.name == name));
     await _persistMedicationState();
-  }
-
-  Future<void> _toggleMedication(
-    MedicationItemState medication,
-    bool taken,
-  ) async {
-    final copy = AppCopy.of(context);
-    final now = TimeOfDay.now();
-    final todayKey = MedicationLogService.instance.todayKey();
-    final time =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    setState(() {
-      final index = _medications.indexWhere((m) => m.name == medication.name);
-      if (index >= 0) {
-        _medications[index] = _medications[index].copyWith(
-          takenToday: taken,
-          skippedToday: !taken,
-        );
-      }
-      _logs.insert(
-        0,
-        DoseLog(
-          title: taken
-              ? copy.logTakenAt(time, [medication.name])
-              : copy.logSkippedAt(time, [medication.name]),
-          time: time,
-          skipped: !taken,
-          medicationNames: [medication.name],
-          dateKey: todayKey,
-        ),
-      );
-      if (_logs.length > 20) _logs.removeLast();
-    });
-    await _persistMedicationState();
-  }
-
-  Future<void> _markSelectedMedications(List<String> names) async {
-    if (names.isEmpty) return;
-    final copy = AppCopy.of(context);
-    final now = TimeOfDay.now();
-    final todayKey = MedicationLogService.instance.todayKey();
-    final time =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    final shouldCompleteCycle =
-        _medications.isNotEmpty && names.length == _medications.length;
-
-    setState(() {
-      for (var i = 0; i < _medications.length; i++) {
-        final medication = _medications[i];
-        if (names.contains(medication.name)) {
-          _medications[i] = medication.copyWith(
-            takenToday: true,
-            skippedToday: false,
-          );
-        }
-      }
-
-      if (shouldCompleteCycle && _cycleStatuses.length < _dailyDoseGoal) {
-        _cycleStatuses.add('taken');
-        _takenDoses += 1;
-      }
-
-      _logs.insert(
-        0,
-        DoseLog(
-          title: copy.logTakenAt(time, names),
-          time: time,
-          skipped: false,
-          medicationNames: names,
-          dateKey: todayKey,
-        ),
-      );
-      if (_logs.length > 20) _logs.removeLast();
-    });
-
-    await _persistMedicationState();
-    if (shouldCompleteCycle && _takenDoses >= _dailyDoseGoal) {
-      _interstitialAd?.show();
-      _interstitialAd = null;
-      _loadInterstitial();
-    }
-  }
-
-  Future<void> _completeCurrentCycleFromPartial() async {
-    if (_cycleStatuses.length >= _dailyDoseGoal) return;
-    final takenNames = _medications
-        .where((medication) => medication.takenToday)
-        .map((medication) => medication.name)
-        .toList();
-    if (takenNames.isEmpty) return;
-
-    final copy = AppCopy.of(context);
-    final now = TimeOfDay.now();
-    final todayKey = MedicationLogService.instance.todayKey();
-    final time =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-
-    setState(() {
-      _cycleStatuses.add('taken');
-      _takenDoses += 1;
-      _logs.insert(
-        0,
-        DoseLog(
-          title: copy.logTakenAt(time, takenNames),
-          time: time,
-          skipped: false,
-          medicationNames: takenNames,
-          dateKey: todayKey,
-        ),
-      );
-      if (_logs.length > 20) _logs.removeLast();
-    });
-
-    await _persistMedicationState();
-    if (_takenDoses >= _dailyDoseGoal) {
-      _interstitialAd?.show();
-      _interstitialAd = null;
-      _loadInterstitial();
-    }
   }
 
   Future<void> _markWholeCycle(bool skipped) async {
@@ -483,23 +345,6 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
     await _persistMedicationState();
     await ToastService.show(copy.todayResetDone);
   }
-
-  double get _progress =>
-      (_takenDoses / (_dailyDoseGoal == 0 ? 1 : _dailyDoseGoal)).clamp(0.0, 1.0);
-
-  String _nextReminderLabel(AppCopy copy) {
-    if (_cycleStatuses.length >= _dailyDoseGoal) return copy.scheduleFinished;
-    final hour = math.min(
-      23,
-      _startHourValue + (_cycleStatuses.length * _intervalHours),
-    );
-    return copy.hourLabel(hour);
-  }
-
-  List<int> _doseHours() => List.generate(
-        _dailyDoseGoal,
-        (index) => math.min(23, _startHourValue + (_intervalHours * index)),
-      );
 
   DailyMedicationSummary get _todaySummary => DailyMedicationSummary(
         dateKey: MedicationLogService.instance.todayKey(),
@@ -566,14 +411,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
             setState(() => _remindersEnabled = value);
             return _syncReminderSchedule();
           },
-          onDoseChanged: (value) async {
-            setState(() {
-              _dailyDoseGoal = value;
-              _normalizeCycleProgress();
-            });
-            await _persistMedicationState();
-            if (_remindersEnabled) await _syncReminderSchedule();
-          },
+          onDoseChanged: _setDailyDoseGoal,
           onIntervalChanged: (value) async {
             setState(() => _intervalHours = value);
             await _persistMedicationState();
@@ -590,6 +428,15 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _setDailyDoseGoal(int value) async {
+    setState(() {
+      _dailyDoseGoal = value;
+      _normalizeCycleProgress();
+    });
+    await _persistMedicationState();
+    if (_remindersEnabled) await _syncReminderSchedule();
   }
 
   void _openHistory() {
@@ -614,40 +461,21 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
   @override
   Widget build(BuildContext context) {
     final copy = AppCopy.of(context);
-    final selected = plans[_selectedPlan];
     final bottomInset = MediaQuery.of(context).viewPadding.bottom;
     final hasVisibleBanner = _bannerLoaded && _bannerAd != null;
     final bannerHeight = hasVisibleBanner ? _bannerAd!.size.height.toDouble() : 0;
     final bottomOverlayPadding =
         _baseBottomOverlayPadding + bottomInset + bannerHeight;
     final pages = [
-      HomeDashboardPage(
+      PillTrackerPage(
         copy: copy,
-        plans: plans,
-        selectedPlan: _selectedPlan,
-        selected: selected,
-        takenDoses: _takenDoses,
         dailyDoseGoal: _dailyDoseGoal,
-        progress: _progress,
-        nextReminder: _nextReminderLabel(copy),
-        doseHours: _doseHours(),
         cycleStatuses: _cycleStatuses,
-        medications: _medications,
+        sevenDaySummaries: _sevenDaySummaries,
+        onDoseChanged: _setDailyDoseGoal,
+        onMarkTaken: () => _markWholeCycle(false),
+        onMarkSkipped: () => _markWholeCycle(true),
         bottomPadding: bottomOverlayPadding,
-        onApplyPlan: _applyPlan,
-        onMarkCycleTaken: () => _markWholeCycle(false),
-        onMarkCycleSkipped: () => _markWholeCycle(true),
-        onToggleMedication: _toggleMedication,
-        onCompleteSelectedMedications: _markSelectedMedications,
-        onCompleteCurrentCycle: _completeCurrentCycleFromPartial,
-        emptyMedicationWarningDismissed: _emptyMedicationWarningDismissed,
-        onDismissEmptyMedicationWarning: () async {
-          if (mounted) {
-            setState(() => _emptyMedicationWarningDismissed = true);
-          }
-          await MedicationLogService.instance
-              .saveEmptyMedicationWarningDismissed(true);
-        },
       ),
       StatsDashboardPage(
         copy: copy,
@@ -664,7 +492,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       extendBody: true,
       appBar: AppBar(
         title: Text(
-          _selectedTab == 0 ? copy.todayChecklist : copy.statsTitle,
+          _selectedTab == 0 ? copy.trackerTitle : copy.statsTitle,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w900,
                 color: const Color(0xFF25164D),
