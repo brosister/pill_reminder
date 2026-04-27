@@ -292,7 +292,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
     await _persistMedicationState();
   }
 
-  Future<void> _markWholeCycle(bool skipped) async {
+  Future<void> _markWholeCycle(bool skipped, [int? slotIndex]) async {
     final copy = AppCopy.of(context);
     final now = TimeOfDay.now();
     final todayKey = MedicationLogService.instance.todayKey();
@@ -300,12 +300,15 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     final names = _medications.map((m) => m.name).toList();
     setState(() {
-      if (_cycleStatuses.length < _dailyDoseGoal) {
-        _cycleStatuses.add(skipped ? 'skipped' : 'taken');
+      final targetIndex = slotIndex ?? _cycleStatuses.length;
+      if (targetIndex < _dailyDoseGoal) {
+        while (_cycleStatuses.length <= targetIndex) {
+          _cycleStatuses.add('pending');
+        }
+        _cycleStatuses[targetIndex] = skipped ? 'skipped' : 'taken';
       }
-      if (!skipped && _takenDoses < _dailyDoseGoal) {
-        _takenDoses += 1;
-      }
+      _takenDoses =
+          _cycleStatuses.where((status) => status == 'taken').length;
       _logs.insert(
         0,
         DoseLog(
@@ -473,8 +476,8 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
         cycleStatuses: _cycleStatuses,
         sevenDaySummaries: _sevenDaySummaries,
         onDoseChanged: _setDailyDoseGoal,
-        onMarkTaken: () => _markWholeCycle(false),
-        onMarkSkipped: () => _markWholeCycle(true),
+        onMarkTaken: (slotIndex) => _markWholeCycle(false, slotIndex),
+        onMarkSkipped: (slotIndex) => _markWholeCycle(true, slotIndex),
         bottomPadding: bottomOverlayPadding,
       ),
       StatsDashboardPage(

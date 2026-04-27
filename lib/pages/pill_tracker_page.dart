@@ -23,8 +23,8 @@ class PillTrackerPage extends StatelessWidget {
   final List<String> cycleStatuses;
   final List<DailyMedicationSummary> sevenDaySummaries;
   final Future<void> Function(int value) onDoseChanged;
-  final Future<void> Function() onMarkTaken;
-  final Future<void> Function() onMarkSkipped;
+  final Future<void> Function(int slotIndex) onMarkTaken;
+  final Future<void> Function(int slotIndex) onMarkSkipped;
   final double bottomPadding;
 
   @override
@@ -112,6 +112,7 @@ class _DoseStepper extends StatelessWidget {
     final canIncrease = value < max;
 
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           copy.perDay,

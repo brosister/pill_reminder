@@ -21,8 +21,8 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
   final List<PillTrackerDay> days;
   final int columns;
   final List<String> todayStatuses;
-  final Future<void> Function() onTapNext;
-  final Future<void> Function() onLongPressNext;
+  final Future<void> Function(int slotIndex) onTapNext;
+  final Future<void> Function(int slotIndex) onLongPressNext;
   final Future<void> Function() onTapUnavailable;
 
   @override
@@ -96,10 +96,12 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
                           columnIndex: slotIndex,
                           columnCount: columnCount,
                           onTap: canTapSlot
-                              ? onTapNext
+                              ? () => onTapNext(slotIndex)
                               : (canWarnSlot ? onTapUnavailable : null),
                           onLongPress:
-                              canTapSlot ? onLongPressNext : null,
+                              canTapSlot
+                                  ? () => onLongPressNext(slotIndex)
+                                  : null,
                         ),
                       );
                     }),
@@ -120,9 +122,9 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
     return List.generate(columns, (index) {
       if (index >= cycleStatuses.length) return PillTrackerSlotStatus.pending;
       final value = cycleStatuses[index];
-      return value == 'skipped'
-          ? PillTrackerSlotStatus.skipped
-          : PillTrackerSlotStatus.taken;
+      if (value == 'skipped') return PillTrackerSlotStatus.skipped;
+      if (value == 'taken') return PillTrackerSlotStatus.taken;
+      return PillTrackerSlotStatus.pending;
     });
   }
 
