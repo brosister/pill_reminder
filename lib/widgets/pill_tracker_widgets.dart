@@ -89,7 +89,7 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
                         height: slotHeight,
                         child: PillBlisterSlot(
                           status: status,
-                          showPill: canTapSlot,
+                          showPill: status == PillTrackerSlotStatus.pending,
                           highlight: highlightCurrent,
                           rowIndex: index,
                           rowCount: days.length,
