@@ -286,26 +286,48 @@ class _BlisterFrame extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/blister/center.png',
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const _BlisterFallbackFill(),
+          _BlisterSlice(
+            asset: 'assets/blister/center.png',
+            alignment: Alignment.center,
+            widthFactor: 1,
+            heightFactor: 1,
+            fallback: const _BlisterFallbackFill(),
           ),
-          _CornerAsset(
+          const _BlisterSlice(
+            asset: 'assets/blister/left_top.png',
             alignment: Alignment.topLeft,
-            asset: 'assets/blister/corner_tl.png',
+            widthFactor: 0.56,
+            heightFactor: 0.62,
           ),
-          _CornerAsset(
+          const _BlisterSlice(
+            asset: 'assets/blister/right_top.png',
             alignment: Alignment.topRight,
-            asset: 'assets/blister/corner_tr.png',
+            widthFactor: 0.56,
+            heightFactor: 0.62,
           ),
-          _CornerAsset(
+          const _BlisterSlice(
+            asset: 'assets/blister/left_middle.png',
+            alignment: Alignment.centerLeft,
+            widthFactor: 0.56,
+            heightFactor: 0.48,
+          ),
+          const _BlisterSlice(
+            asset: 'assets/blister/right_middle.png',
+            alignment: Alignment.centerRight,
+            widthFactor: 0.56,
+            heightFactor: 0.48,
+          ),
+          const _BlisterSlice(
+            asset: 'assets/blister/left_bottom.png',
             alignment: Alignment.bottomLeft,
-            asset: 'assets/blister/corner_bl.png',
+            widthFactor: 0.56,
+            heightFactor: 0.62,
           ),
-          _CornerAsset(
+          const _BlisterSlice(
+            asset: 'assets/blister/right_bottom.png',
             alignment: Alignment.bottomRight,
-            asset: 'assets/blister/corner_br.png',
+            widthFactor: 0.56,
+            heightFactor: 0.62,
           ),
           IgnorePointer(
             child: DecoratedBox(
@@ -324,22 +346,34 @@ class _BlisterFrame extends StatelessWidget {
   }
 }
 
-class _CornerAsset extends StatelessWidget {
-  const _CornerAsset({required this.alignment, required this.asset});
+class _BlisterSlice extends StatelessWidget {
+  const _BlisterSlice({
+    required this.asset,
+    required this.alignment,
+    required this.widthFactor,
+    required this.heightFactor,
+    this.fallback,
+  });
 
-  final Alignment alignment;
   final String asset;
+  final Alignment alignment;
+  final double widthFactor;
+  final double heightFactor;
+  final Widget? fallback;
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: alignment,
-      child: Image.asset(
-        asset,
-        width: 22,
-        height: 22,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      child: FractionallySizedBox(
+        widthFactor: widthFactor,
+        heightFactor: heightFactor,
+        alignment: alignment,
+        child: Image.asset(
+          asset,
+          fit: BoxFit.fill,
+          errorBuilder: (_, __, ___) => fallback ?? const SizedBox.shrink(),
+        ),
       ),
     );
   }
