@@ -355,10 +355,15 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       );
 
   List<DailyMedicationSummary> get _sevenDaySummaries {
+    final weekStartDate = MedicationLogService.instance.weekStart();
     final todayKey = _todaySummary.dateKey;
     final recentHistory = _history
-        .where((item) => item.dateKey != todayKey)
-        .take(6)
+        .where((item) {
+          final date = DateTime.tryParse(item.dateKey);
+          return date != null &&
+              !date.isBefore(weekStartDate) &&
+              item.dateKey != todayKey;
+        })
         .toList();
     return [...recentHistory, _todaySummary];
   }
@@ -373,12 +378,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       _sevenDayGoal == 0 ? 0 : ((_sevenDayTaken / _sevenDayGoal) * 100).round();
 
   List<DailyPillCount> get _weeklyCounts {
-    final today = DateTime.now();
-    final start = DateTime(
-      today.year,
-      today.month,
-      today.day,
-    ).subtract(const Duration(days: 6));
+    final start = MedicationLogService.instance.weekStart();
     final byDate = {for (final item in _sevenDaySummaries) item.dateKey: item};
 
     return List.generate(7, (index) {

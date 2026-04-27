@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/app_copy.dart';
 import '../services/medication_log_service.dart';
+import '../services/toast_service.dart';
 import '../widgets/pill_tracker_widgets.dart';
 
 class PillTrackerPage extends StatelessWidget {
@@ -30,9 +31,7 @@ class PillTrackerPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final todayKey = MedicationLogService.instance.todayKey();
     final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day).subtract(
-      const Duration(days: 6),
-    );
+    final start = MedicationLogService.instance.weekStart(now);
     final summaryByDate = {
       for (final summary in sevenDaySummaries) summary.dateKey: summary,
     };
@@ -80,6 +79,9 @@ class PillTrackerPage extends StatelessWidget {
                 todayStatuses: cycleStatuses,
                 onTapNext: onMarkTaken,
                 onLongPressNext: onMarkSkipped,
+                onTapUnavailable: () => ToastService.show(
+                  copy.todayOnlyMessage(now),
+                ),
               ),
             ),
           ],

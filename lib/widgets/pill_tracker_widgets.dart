@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/app_copy.dart';
 
@@ -13,6 +14,7 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
     required this.todayStatuses,
     required this.onTapNext,
     required this.onLongPressNext,
+    required this.onTapUnavailable,
   });
 
   final AppCopy copy;
@@ -21,16 +23,19 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
   final List<String> todayStatuses;
   final Future<void> Function() onTapNext;
   final Future<void> Function() onLongPressNext;
+  final Future<void> Function() onTapUnavailable;
 
   @override
   Widget build(BuildContext context) {
     final columnCount = math.max(1, columns);
     final labelWidth = copy.isKorean ? 34.0 : 44.0;
+    const frameAspectRatio = 284 / 475;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final usableWidth = constraints.maxWidth - labelWidth - 12;
         final slotWidth = usableWidth / columnCount;
+        final slotHeight = slotWidth * frameAspectRatio;
 
         return ListView.builder(
           physics: const BouncingScrollPhysics(),
@@ -40,7 +45,6 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
             final isToday = day.isToday;
             final taken = day.taken;
             final skipped = day.skipped;
-            final goal = day.goal == 0 ? columnCount : day.goal;
             final date = day.date;
 
             final statuses = isToday
@@ -48,7 +52,6 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
                 : _buildHistoricalStatuses(
                     taken: taken,
                     skipped: skipped,
-                    goal: goal,
                     columns: columnCount,
                   );
 
@@ -74,27 +77,29 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
                   child: Row(
                     children: List.generate(columnCount, (slotIndex) {
                       final status = statuses[slotIndex];
-                      final canTapNext = isToday &&
-                          status == PillTrackerSlotStatus.pending &&
-                          slotIndex == todayStatuses.length &&
-                          slotIndex < columnCount;
-                      final slotHeight =
-                          _slotHeightForRow(slotWidth, index, days.length);
+                      final canTapSlot =
+                          isToday && status == PillTrackerSlotStatus.pending;
+                      final canWarnSlot =
+                          !isToday && status == PillTrackerSlotStatus.pending;
+                      final highlightCurrent = canTapSlot &&
+                          slotIndex == todayStatuses.length;
 
                       return SizedBox(
                         width: slotWidth,
                         height: slotHeight,
                         child: PillBlisterSlot(
                           status: status,
-                          showPill: status == PillTrackerSlotStatus.pending,
-                          highlight: canTapNext,
+                          showPill: canTapSlot,
+                          highlight: highlightCurrent,
                           rowIndex: index,
                           rowCount: days.length,
                           columnIndex: slotIndex,
                           columnCount: columnCount,
-                          onTap: canTapNext ? onTapNext : null,
+                          onTap: canTapSlot
+                              ? onTapNext
+                              : (canWarnSlot ? onTapUnavailable : null),
                           onLongPress:
-                              canTapNext ? onLongPressNext : null,
+                              canTapSlot ? onLongPressNext : null,
                         ),
                       );
                     }),
@@ -106,12 +111,6 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
         );
       },
     );
-  }
-
-  double _slotHeightForRow(double slotWidth, int rowIndex, int rowCount) {
-    final isEdgeRow = rowIndex == 0 || rowIndex == rowCount - 1;
-    final ratio = isEdgeRow ? (79 / 140) : (60 / 140);
-    return slotWidth * ratio;
   }
 
   List<PillTrackerSlotStatus> _buildTodayStatuses(
@@ -130,11 +129,9 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
   List<PillTrackerSlotStatus> _buildHistoricalStatuses({
     required int taken,
     required int skipped,
-    required int goal,
     required int columns,
   }) {
-    final normalizedGoal = math.max(0, goal);
-    final available = math.min(columns, normalizedGoal == 0 ? columns : normalizedGoal);
+    final available = columns;
     final filledTaken = math.max(0, math.min(available, taken));
     final filledSkipped =
         math.max(0, math.min(available - filledTaken, skipped));
@@ -198,66 +195,84 @@ class PillBlisterSlot extends StatelessWidget {
 
     return Opacity(
       opacity: surfaceOpacity,
-      child: InkWell(
-        onTap: onTap == null ? null : () => onTap!.call(),
-        onLongPress:
-            onLongPress == null ? null : () => onLongPress!.call(),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _BlisterFrame(
-              rowIndex: rowIndex,
-              rowCount: rowCount,
-              columnIndex: columnIndex,
-              columnCount: columnCount,
-            ),
-            Positioned.fill(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  columnIndex == 0 ? 10 : 6,
-                  rowIndex == 0 ? 12 : 8,
-                  columnIndex == columnCount - 1 ? 10 : 6,
-                  rowIndex == rowCount - 1 ? 10 : 6,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: _borderRadiusForPosition(),
+          splashColor: const Color(0xFF2A7F62).withAlpha(28),
+          highlightColor: const Color(0xFF2A7F62).withAlpha(18),
+          onTap: onTap == null
+              ? null
+              : () async {
+                  await HapticFeedback.lightImpact();
+                  await onTap!.call();
+                },
+          onLongPress:
+              onLongPress == null
+                  ? null
+                  : () async {
+                      await HapticFeedback.mediumImpact();
+                      await onLongPress!.call();
+                    },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned.fill(
+                child: _BlisterFrame(
+                  borderRadius: _borderRadiusForPosition(),
+                  columnIndex: columnIndex,
+                  columnCount: columnCount,
                 ),
-                child: Opacity(
-                  opacity: pillOpacity,
-                  child: Transform.translate(
-                    offset: const Offset(0, 1),
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      child: SizedBox(
-                        width: 78,
-                        height: 42,
-                        child: RotatedBox(
-                          quarterTurns: 1,
-                          child: Image.asset(
-                            'assets/pills/pill.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                          ),
-                        ),
+              ),
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: _borderRadiusForPosition(),
+                  child: Opacity(
+                    opacity: pillOpacity,
+                    child: Image.asset(
+                      'assets/pills/pill.png',
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
+              if (status == PillTrackerSlotStatus.skipped)
+                const Positioned.fill(child: _SkippedOverlay()),
+              if (highlight)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: _borderRadiusForPosition(),
+                      border: Border.all(
+                        color: const Color(0xFF2A7F62).withAlpha(84),
+                        width: 1,
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            if (status == PillTrackerSlotStatus.skipped)
-              const Positioned.fill(child: _SkippedOverlay()),
-            if (highlight)
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: const Color(0xFF2A7F62).withAlpha(84),
-                      width: 1,
-                    ),
-                  ),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  BorderRadius _borderRadiusForPosition() {
+    const radius = Radius.circular(20);
+    return BorderRadius.only(
+      topLeft: rowIndex == 0 && columnIndex == 0 ? radius : Radius.zero,
+      topRight: rowIndex == 0 && columnIndex == columnCount - 1
+          ? radius
+          : Radius.zero,
+      bottomLeft: rowIndex == rowCount - 1 && columnIndex == 0
+          ? radius
+          : Radius.zero,
+      bottomRight:
+          rowIndex == rowCount - 1 && columnIndex == columnCount - 1
+              ? radius
+              : Radius.zero,
     );
   }
 }
@@ -301,40 +316,75 @@ class _SkippedPainter extends CustomPainter {
 
 class _BlisterFrame extends StatelessWidget {
   const _BlisterFrame({
-    required this.rowIndex,
-    required this.rowCount,
+    required this.borderRadius,
     required this.columnIndex,
     required this.columnCount,
   });
 
-  final int rowIndex;
-  final int rowCount;
+  final BorderRadius borderRadius;
   final int columnIndex;
   final int columnCount;
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      _assetForPosition(),
-      fit: BoxFit.fill,
-      errorBuilder: (_, __, ___) => const _BlisterFallbackFill(),
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final slice = _sliceForColumn();
+          return ClipRect(
+            child: Align(
+              alignment: slice.alignment,
+              child: SizedBox(
+                width: constraints.maxWidth / slice.visibleFraction,
+                height: constraints.maxHeight,
+                child: Image.asset(
+                  'assets/blister/frame.png',
+                  fit: BoxFit.fill,
+                  errorBuilder: (_, __, ___) => const _BlisterFallbackFill(),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
-  String _assetForPosition() {
-    final isTopRow = rowIndex == 0;
-    final isBottomRow = rowIndex == rowCount - 1;
-    final isLeftColumn = columnIndex == 0;
-    final isRightColumn = columnIndex == columnCount - 1;
-
-    if (isTopRow && isLeftColumn) return 'assets/blister/left_top.png';
-    if (isTopRow && isRightColumn) return 'assets/blister/right_top.png';
-    if (isBottomRow && isLeftColumn) return 'assets/blister/left_bottom.png';
-    if (isBottomRow && isRightColumn) return 'assets/blister/right_bottom.png';
-    if (isLeftColumn) return 'assets/blister/left_middle.png';
-    if (isRightColumn) return 'assets/blister/right_middle.png';
-    return 'assets/blister/center.png';
+  _FrameSlice _sliceForColumn() {
+    if (columnCount <= 1) {
+      return const _FrameSlice(
+        alignment: Alignment.center,
+        visibleFraction: 1,
+      );
+    }
+    if (columnIndex == 0) {
+      return const _FrameSlice(
+        alignment: Alignment.centerLeft,
+        visibleFraction: 0.52,
+      );
+    }
+    if (columnIndex == columnCount - 1) {
+      return const _FrameSlice(
+        alignment: Alignment.centerRight,
+        visibleFraction: 0.52,
+      );
+    }
+    return const _FrameSlice(
+      alignment: Alignment.center,
+      visibleFraction: 0.26,
+    );
   }
+}
+
+class _FrameSlice {
+  const _FrameSlice({
+    required this.alignment,
+    required this.visibleFraction,
+  });
+
+  final Alignment alignment;
+  final double visibleFraction;
 }
 
 class _BlisterFallbackFill extends StatelessWidget {

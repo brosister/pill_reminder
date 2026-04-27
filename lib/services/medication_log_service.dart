@@ -138,6 +138,7 @@ class MedicationLogService {
   static const _medicationNamesKey = 'pill_reminder_medications';
   static const _logsKey = 'pill_reminder_logs';
   static const _historyKey = 'pill_reminder_history';
+  static const _weekStartKey = 'pill_reminder_week_start';
   static const _emptyMedicationWarningDismissedKey =
       'pill_reminder_empty_medication_warning_dismissed';
   static const _maxStoredLogs = 120;
@@ -147,11 +148,25 @@ class MedicationLogService {
     return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
+  DateTime weekStart([DateTime? now]) {
+    final date = now ?? DateTime.now();
+    final normalized = DateTime(date.year, date.month, date.day);
+    return normalized.subtract(Duration(days: normalized.weekday - 1));
+  }
+
+  String weekStartKey([DateTime? now]) => todayKey(weekStart(now));
+
   Future<void> _rolloverIfNeeded(SharedPreferences prefs) async {
     final currentDate = todayKey();
+    final currentWeekStart = weekStartKey();
     final savedDate = prefs.getString(_dateKeyStorage);
+    final savedWeekStart = prefs.getString(_weekStartKey);
     if (savedDate == null || savedDate == currentDate) {
       await prefs.setString(_dateKeyStorage, currentDate);
+      await prefs.setString(_weekStartKey, currentWeekStart);
+      if (savedWeekStart != null && savedWeekStart != currentWeekStart) {
+        await prefs.setString(_historyKey, jsonEncode(<Map<String, dynamic>>[]));
+      }
       return;
     }
 
@@ -173,11 +188,15 @@ class MedicationLogService {
         cycleStatuses.where((status) => status == 'skipped').length;
 
     final historyRaw = prefs.getString(_historyKey);
-    final history = historyRaw == null
+    var history = historyRaw == null
         ? <DailyMedicationSummary>[]
         : (jsonDecode(historyRaw) as List)
             .map((e) => DailyMedicationSummary.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
+
+    if (savedWeekStart != null && savedWeekStart != currentWeekStart) {
+      history = <DailyMedicationSummary>[];
+    }
 
     history.insert(
       0,
@@ -189,14 +208,25 @@ class MedicationLogService {
       ),
     );
 
-    final trimmedHistory = history.take(7).toList();
+    final trimmedHistory = history
+        .where((item) => !_isBeforeWeek(item.dateKey, currentWeekStart))
+        .take(7)
+        .toList();
     final resetMeds = medications.map((m) => m.copyWith(takenToday: false, skippedToday: false)).toList();
 
     await prefs.setString(_historyKey, jsonEncode(trimmedHistory.map((e) => e.toJson()).toList()));
     await prefs.setString(_dateKeyStorage, currentDate);
+    await prefs.setString(_weekStartKey, currentWeekStart);
     await prefs.setInt(_takenDosesKey, 0);
     await prefs.setString(_cycleStatusesKey, jsonEncode(<String>[]));
     await prefs.setString(_medicationNamesKey, jsonEncode(resetMeds.map((e) => e.toJson()).toList()));
+  }
+
+  bool _isBeforeWeek(String dateKeyValue, String weekStartKeyValue) {
+    final date = DateTime.tryParse(dateKeyValue);
+    final weekStartDate = DateTime.tryParse(weekStartKeyValue);
+    if (date == null || weekStartDate == null) return false;
+    return date.isBefore(weekStartDate);
   }
 
   Future<MedicationSnapshot> load() async {
@@ -220,11 +250,13 @@ class MedicationLogService {
             .toList();
     final rawCycleStatuses = prefs.getString(_cycleStatusesKey);
 
+    final currentWeekStart = weekStartKey();
     final historyRaw = prefs.getString(_historyKey);
     final history = historyRaw == null
         ? <DailyMedicationSummary>[]
         : (jsonDecode(historyRaw) as List)
             .map((e) => DailyMedicationSummary.fromJson(Map<String, dynamic>.from(e as Map)))
+            .where((entry) => !_isBeforeWeek(entry.dateKey, currentWeekStart))
             .toList();
 
     return MedicationSnapshot(
@@ -258,6 +290,7 @@ class MedicationLogService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_dateKeyStorage, todayKey());
+    await prefs.setString(_weekStartKey, weekStartKey());
     await prefs.setInt(_takenDosesKey, takenDoses);
     await prefs.setString(_cycleStatusesKey, jsonEncode(cycleStatuses));
     await prefs.setInt(_dailyDoseGoalKey, dailyDoseGoal);

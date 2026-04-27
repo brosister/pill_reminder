@@ -227,4 +227,11 @@ class AppCopy {
     final month = months[value.month - 1];
     return '${weekdayShort(value)}, $month ${value.day}, ${value.year}';
   }
+
+  String todayOnlyMessage(DateTime value) {
+    final day = weekdayLong(value);
+    return isKorean
+        ? '오늘은 $day이에요!'
+        : 'Today is $day.';
+  }
 }
