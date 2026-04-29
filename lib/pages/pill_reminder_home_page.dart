@@ -72,6 +72,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
   int _dailyDoseGoal = 3;
   int _intervalHours = 8;
   int _startHourValue = 8;
+  List<String> _doseMoments = const ['morning', 'lunch', 'evening'];
   bool _remindersEnabled = false;
   final List<DoseLog> _logs = [];
   final List<MedicationItemState> _medications = [];
@@ -125,6 +126,10 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       _dailyDoseGoal = snapshot.dailyDoseGoal;
       _intervalHours = snapshot.intervalHours;
       _startHourValue = snapshot.startHour;
+      _doseMoments = _normalizeDoseMoments(
+        snapshot.doseMoments,
+        snapshot.dailyDoseGoal,
+      );
       _takenDoses = snapshot.takenDoses;
       _normalizeCycleProgress();
       _medications
@@ -156,6 +161,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       dailyDoseGoal: _dailyDoseGoal,
       intervalHours: _intervalHours,
       startHour: _startHourValue,
+      doseMoments: List<String>.from(_doseMoments),
       selectedPlan: _selectedPlan,
       medications: List<MedicationItemState>.from(_medications),
       logs: _logs
@@ -267,6 +273,29 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       await ToastService.show(copy.reminderSaved);
     }
     return _remindersEnabled;
+  }
+
+  List<String> _defaultDoseMoments(int dailyDoseGoal) {
+    return MedicationLogService.instance.defaultDoseMoments(dailyDoseGoal);
+  }
+
+  List<String> _normalizeDoseMoments(List<String> source, int dailyDoseGoal) {
+    if (dailyDoseGoal >= 4) {
+      return _defaultDoseMoments(dailyDoseGoal);
+    }
+    final defaults = _defaultDoseMoments(dailyDoseGoal);
+    if (source.length != dailyDoseGoal) return defaults;
+    const allowed = {'morning', 'lunch', 'evening'};
+    if (source.any((item) => !allowed.contains(item))) return defaults;
+    if (source.toSet().length != source.length) return defaults;
+    return List<String>.from(source);
+  }
+
+  Future<void> _setDoseMoments(List<String> value) async {
+    setState(() {
+      _doseMoments = _normalizeDoseMoments(value, _dailyDoseGoal);
+    });
+    await _persistMedicationState();
   }
 
   Future<void> _addMedicationName() async {
@@ -405,6 +434,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
           intervalHours: _intervalHours,
           startHourValue: _startHourValue,
           dailyDoseGoal: _dailyDoseGoal,
+          doseMoments: _doseMoments,
           medications: _medications,
           medicationController: _medicationController,
           doseOptions: _doseOptions,
@@ -415,6 +445,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
             return _syncReminderSchedule();
           },
           onDoseChanged: _setDailyDoseGoal,
+          onDoseMomentsChanged: _setDoseMoments,
           onIntervalChanged: (value) async {
             setState(() => _intervalHours = value);
             await _persistMedicationState();
@@ -436,6 +467,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
   Future<void> _setDailyDoseGoal(int value) async {
     setState(() {
       _dailyDoseGoal = value;
+      _doseMoments = _defaultDoseMoments(value);
       _normalizeCycleProgress();
     });
     await _persistMedicationState();
@@ -473,9 +505,11 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       PillTrackerPage(
         copy: copy,
         dailyDoseGoal: _dailyDoseGoal,
+        doseMoments: _doseMoments,
         cycleStatuses: _cycleStatuses,
         sevenDaySummaries: _sevenDaySummaries,
         onDoseChanged: _setDailyDoseGoal,
+        onDoseMomentsChanged: _setDoseMoments,
         onMarkTaken: (slotIndex) => _markWholeCycle(false, slotIndex),
         onMarkSkipped: (slotIndex) => _markWholeCycle(true, slotIndex),
         onOpenHistory: _openHistory,
@@ -564,4 +598,3 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
     );
   }
 }
-

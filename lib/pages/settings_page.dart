@@ -12,6 +12,7 @@ class PillSettingsPage extends StatefulWidget {
     required this.intervalHours,
     required this.startHourValue,
     required this.dailyDoseGoal,
+    required this.doseMoments,
     required this.medications,
     required this.medicationController,
     required this.doseOptions,
@@ -19,6 +20,7 @@ class PillSettingsPage extends StatefulWidget {
     required this.startHourOptions,
     required this.onReminderChanged,
     required this.onDoseChanged,
+    required this.onDoseMomentsChanged,
     required this.onIntervalChanged,
     required this.onStartHourChanged,
     required this.onAddMedication,
@@ -31,6 +33,7 @@ class PillSettingsPage extends StatefulWidget {
   final int intervalHours;
   final int startHourValue;
   final int dailyDoseGoal;
+  final List<String> doseMoments;
   final List<MedicationItemState> medications;
   final TextEditingController medicationController;
   final List<int> doseOptions;
@@ -38,6 +41,7 @@ class PillSettingsPage extends StatefulWidget {
   final List<int> startHourOptions;
   final Future<bool> Function(bool) onReminderChanged;
   final Future<void> Function(int) onDoseChanged;
+  final Future<void> Function(List<String>) onDoseMomentsChanged;
   final Future<void> Function(int) onIntervalChanged;
   final Future<void> Function(int) onStartHourChanged;
   final Future<void> Function() onAddMedication;
@@ -53,6 +57,7 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
   late int _intervalHours;
   late int _startHourValue;
   late int _dailyDoseGoal;
+  late List<String> _doseMoments;
 
   @override
   void initState() {
@@ -61,6 +66,7 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
     _intervalHours = widget.intervalHours;
     _startHourValue = widget.startHourValue;
     _dailyDoseGoal = widget.dailyDoseGoal;
+    _doseMoments = List<String>.from(widget.doseMoments);
   }
 
   @override
@@ -77,6 +83,9 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
     }
     if (oldWidget.dailyDoseGoal != widget.dailyDoseGoal) {
       _dailyDoseGoal = widget.dailyDoseGoal;
+    }
+    if (oldWidget.doseMoments != widget.doseMoments) {
+      _doseMoments = List<String>.from(widget.doseMoments);
     }
   }
 
@@ -125,6 +134,7 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
             _SettingsCard(
               copy: widget.copy,
               dailyDoseGoal: _dailyDoseGoal,
+              doseMoments: _doseMoments,
               intervalHours: _intervalHours,
               startHourValue: _startHourValue,
               doseOptions: widget.doseOptions,
@@ -133,6 +143,12 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
               onDoseChanged: (value) async {
                 setState(() => _dailyDoseGoal = value);
                 await widget.onDoseChanged(value);
+                if (!mounted) return;
+                setState(() => _doseMoments = _defaultDoseMoments(value));
+              },
+              onDoseMomentsChanged: (value) async {
+                setState(() => _doseMoments = List<String>.from(value));
+                await widget.onDoseMomentsChanged(value);
               },
               onIntervalChanged: (value) async {
                 setState(() => _intervalHours = value);
@@ -177,6 +193,19 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
         ),
       ),
     );
+  }
+}
+
+List<String> _defaultDoseMoments(int dailyDoseGoal) {
+  switch (dailyDoseGoal) {
+    case 1:
+      return ['lunch'];
+    case 2:
+      return ['morning', 'evening'];
+    case 3:
+      return ['morning', 'lunch', 'evening'];
+    default:
+      return List.generate(dailyDoseGoal, (index) => 'dose_${index + 1}');
   }
 }
 
@@ -373,24 +402,28 @@ class _SettingsCard extends StatelessWidget {
   const _SettingsCard({
     required this.copy,
     required this.dailyDoseGoal,
+    required this.doseMoments,
     required this.intervalHours,
     required this.startHourValue,
     required this.doseOptions,
     required this.intervalOptions,
     required this.startHourOptions,
     required this.onDoseChanged,
+    required this.onDoseMomentsChanged,
     required this.onIntervalChanged,
     required this.onStartHourChanged,
   });
 
   final AppCopy copy;
   final int dailyDoseGoal;
+  final List<String> doseMoments;
   final int intervalHours;
   final int startHourValue;
   final List<int> doseOptions;
   final List<int> intervalOptions;
   final List<int> startHourOptions;
   final ValueChanged<int> onDoseChanged;
+  final ValueChanged<List<String>> onDoseMomentsChanged;
   final ValueChanged<int> onIntervalChanged;
   final ValueChanged<int> onStartHourChanged;
 
@@ -409,6 +442,15 @@ class _SettingsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+          if (dailyDoseGoal <= 3) ...[
+            _DoseMomentEditor(
+              copy: copy,
+              dailyDoseGoal: dailyDoseGoal,
+              doseMoments: doseMoments,
+              onChanged: onDoseMomentsChanged,
+            ),
+            const SizedBox(height: 14),
+          ],
           LayoutBuilder(
             builder: (context, constraints) {
               final isCompact = constraints.maxWidth < 500;
@@ -462,6 +504,127 @@ class _SettingsCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _DoseMomentEditor extends StatelessWidget {
+  const _DoseMomentEditor({
+    required this.copy,
+    required this.dailyDoseGoal,
+    required this.doseMoments,
+    required this.onChanged,
+  });
+
+  final AppCopy copy;
+  final int dailyDoseGoal;
+  final List<String> doseMoments;
+  final ValueChanged<List<String>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const options = ['morning', 'lunch', 'evening'];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F2FF),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            copy.isKorean ? '복약 시간대' : 'Dose times',
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF25164D),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            copy.isKorean
+                ? '횟수를 바꾸면 기본값이 자동 적용되고, 필요하면 각 회차를 직접 바꿀 수 있어요.'
+                : 'Defaults are applied automatically when the dose count changes, and you can override each slot.',
+            style: const TextStyle(
+              color: Color(0xFF6C6192),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...List.generate(dailyDoseGoal, (index) {
+            final selected =
+                index < doseMoments.length ? doseMoments[index] : options.first;
+            return Padding(
+              padding: EdgeInsets.only(bottom: index == dailyDoseGoal - 1 ? 0 : 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    copy.doseSlotLabel(index),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF5B5890),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: options.map((option) {
+                      final isSelected = selected == option;
+                      return ChoiceChip(
+                        label: Text(_momentLabel(copy, option)),
+                        selected: isSelected,
+                        onSelected: (_) {
+                          final next = List<String>.from(doseMoments);
+                          while (next.length < dailyDoseGoal) {
+                            next.add(options[next.length % options.length]);
+                          }
+                          final existingIndex = next.indexOf(option);
+                          if (existingIndex != -1 && existingIndex != index) {
+                            final previous = next[index];
+                            next[existingIndex] = previous;
+                          }
+                          next[index] = option;
+                          onChanged(next);
+                        },
+                        selectedColor: const Color(0xFFDED5FF),
+                        backgroundColor: Colors.white,
+                        labelStyle: TextStyle(
+                          color: isSelected
+                              ? const Color(0xFF4B35C8)
+                              : const Color(0xFF6C6192),
+                          fontWeight: FontWeight.w700,
+                        ),
+                        side: BorderSide(
+                          color: isSelected
+                              ? const Color(0xFF9F8BFF)
+                              : const Color(0xFFE2DBFB),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+String _momentLabel(AppCopy copy, String value) {
+  switch (value) {
+    case 'morning':
+      return copy.morningLabel;
+    case 'lunch':
+      return copy.lunchLabel;
+    case 'evening':
+      return copy.eveningLabel;
+    default:
+      return value;
   }
 }
 

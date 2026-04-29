@@ -106,6 +106,7 @@ class MedicationSnapshot {
     required this.dailyDoseGoal,
     required this.intervalHours,
     required this.startHour,
+    required this.doseMoments,
     required this.selectedPlan,
     required this.medications,
     required this.logs,
@@ -118,6 +119,7 @@ class MedicationSnapshot {
   final int dailyDoseGoal;
   final int intervalHours;
   final int startHour;
+  final List<String> doseMoments;
   final int selectedPlan;
   final List<MedicationItemState> medications;
   final List<MedicationLogEntry> logs;
@@ -134,6 +136,7 @@ class MedicationLogService {
   static const _dailyDoseGoalKey = 'pill_reminder_daily_goal';
   static const _intervalKey = 'pill_reminder_interval_hours_local';
   static const _startHourKey = 'pill_reminder_start_hour_local';
+  static const _doseMomentsKey = 'pill_reminder_dose_moments';
   static const _selectedPlanKey = 'pill_reminder_selected_plan';
   static const _medicationNamesKey = 'pill_reminder_medications';
   static const _logsKey = 'pill_reminder_logs';
@@ -155,6 +158,19 @@ class MedicationLogService {
   }
 
   String weekStartKey([DateTime? now]) => todayKey(weekStart(now));
+
+  List<String> defaultDoseMoments(int dailyDoseGoal) {
+    switch (dailyDoseGoal) {
+      case 1:
+        return ['lunch'];
+      case 2:
+        return ['morning', 'evening'];
+      case 3:
+        return ['morning', 'lunch', 'evening'];
+      default:
+        return List.generate(dailyDoseGoal, (index) => 'dose_${index + 1}');
+    }
+  }
 
   Future<void> _rolloverIfNeeded(SharedPreferences prefs) async {
     final currentDate = todayKey();
@@ -249,6 +265,7 @@ class MedicationLogService {
             .map((e) => MedicationItemState.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
     final rawCycleStatuses = prefs.getString(_cycleStatusesKey);
+    final rawDoseMoments = prefs.getString(_doseMomentsKey);
 
     final currentWeekStart = weekStartKey();
     final historyRaw = prefs.getString(_historyKey);
@@ -270,6 +287,11 @@ class MedicationLogService {
       dailyDoseGoal: prefs.getInt(_dailyDoseGoalKey) ?? 3,
       intervalHours: prefs.getInt(_intervalKey) ?? 8,
       startHour: prefs.getInt(_startHourKey) ?? 8,
+      doseMoments: rawDoseMoments == null
+          ? defaultDoseMoments(prefs.getInt(_dailyDoseGoalKey) ?? 3)
+          : (jsonDecode(rawDoseMoments) as List)
+              .map((e) => e.toString())
+              .toList(),
       selectedPlan: prefs.getInt(_selectedPlanKey) ?? 1,
       medications: medications,
       logs: decodedLogs,
@@ -283,6 +305,7 @@ class MedicationLogService {
     required int dailyDoseGoal,
     required int intervalHours,
     required int startHour,
+    required List<String> doseMoments,
     required int selectedPlan,
     required List<MedicationItemState> medications,
     required List<MedicationLogEntry> logs,
@@ -296,6 +319,7 @@ class MedicationLogService {
     await prefs.setInt(_dailyDoseGoalKey, dailyDoseGoal);
     await prefs.setInt(_intervalKey, intervalHours);
     await prefs.setInt(_startHourKey, startHour);
+    await prefs.setString(_doseMomentsKey, jsonEncode(doseMoments));
     await prefs.setInt(_selectedPlanKey, selectedPlan);
     await prefs.setString(_medicationNamesKey, jsonEncode(medications.map((e) => e.toJson()).toList()));
     await prefs.setString(

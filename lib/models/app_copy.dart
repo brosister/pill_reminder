@@ -92,7 +92,7 @@ class AppCopy {
   String get missedCount => isKorean ? '최근 7일 건너뜀' : '7-day skipped';
   String get checkedToday => isKorean ? '오늘 체크한 약 종류' : 'Checked medications';
   String get medsCountSetting => isKorean ? '등록된 약 개수' : 'Saved medications';
-  String get trackerTitle => isKorean ? '복약 트래커' : 'Pill Tracker';
+  String get trackerTitle => isKorean ? '약 알리미' : 'Pill Reminder';
   String get todayLabel => isKorean ? '오늘' : 'Today';
   String get perDay => isKorean ? '하루' : 'Per day';
   String get doseUnit => isKorean ? '회' : 'times';
@@ -192,6 +192,11 @@ class AppCopy {
       }
     }
     return 'Dose ${index + 1}';
+  }
+
+  String doseCountLabel(int value) {
+    if (isKorean) return '$value회';
+    return '$value';
   }
 
   String rateText(int rate) => isKorean ? '$rate% 달성' : '$rate% completed';

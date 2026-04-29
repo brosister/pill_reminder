@@ -10,9 +10,11 @@ class PillTrackerPage extends StatefulWidget {
     super.key,
     required this.copy,
     required this.dailyDoseGoal,
+    required this.doseMoments,
     required this.cycleStatuses,
     required this.sevenDaySummaries,
     required this.onDoseChanged,
+    required this.onDoseMomentsChanged,
     required this.onMarkTaken,
     required this.onMarkSkipped,
     required this.onOpenHistory,
@@ -22,9 +24,11 @@ class PillTrackerPage extends StatefulWidget {
 
   final AppCopy copy;
   final int dailyDoseGoal;
+  final List<String> doseMoments;
   final List<String> cycleStatuses;
   final List<DailyMedicationSummary> sevenDaySummaries;
   final Future<void> Function(int value) onDoseChanged;
+  final Future<void> Function(List<String> value) onDoseMomentsChanged;
   final Future<void> Function(int slotIndex) onMarkTaken;
   final Future<void> Function(int slotIndex) onMarkSkipped;
   final VoidCallback onOpenHistory;
@@ -36,16 +40,11 @@ class PillTrackerPage extends StatefulWidget {
 }
 
 class _PillTrackerPageState extends State<PillTrackerPage> {
-  int _weekOffset = 0;
-
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final todayKey = MedicationLogService.instance.todayKey(now);
-    final displayedWeekStart = MedicationLogService.instance
-        .weekStart(now)
-        .add(Duration(days: _weekOffset * 7));
-    final displayedToday = _weekOffset == 0 ? now : displayedWeekStart;
+    final displayedWeekStart = MedicationLogService.instance.weekStart(now);
     final summaryByDate = {
       for (final summary in widget.sevenDaySummaries) summary.dateKey: summary,
     };
@@ -55,7 +54,7 @@ class _PillTrackerPageState extends State<PillTrackerPage> {
       final summary = summaryByDate[key];
       return PillTrackerDay(
         date: date,
-        isToday: key == todayKey && _weekOffset == 0,
+        isToday: key == todayKey,
         taken: summary?.takenCount ?? 0,
         skipped: summary?.skippedCount ?? 0,
         goal: widget.dailyDoseGoal,
@@ -69,30 +68,26 @@ class _PillTrackerPageState extends State<PillTrackerPage> {
         children: [
           _TrackerHeader(
             copy: widget.copy,
-            date: displayedToday,
+            date: now,
             onOpenHistory: widget.onOpenHistory,
             onOpenSettings: widget.onOpenSettings,
-          ),
-          const SizedBox(height: 12),
-          _WeekNavigator(
-            copy: widget.copy,
-            weekOffset: _weekOffset,
-            onPrevious: () => setState(() => _weekOffset -= 1),
-            onNext: () => setState(() => _weekOffset += 1),
           ),
           const SizedBox(height: 10),
           _DoseStepper(
             copy: widget.copy,
             value: widget.dailyDoseGoal,
+            doseMoments: widget.doseMoments,
             min: 1,
             max: 6,
             onChanged: widget.onDoseChanged,
+            onDoseMomentsChanged: widget.onDoseMomentsChanged,
           ),
           const SizedBox(height: 16),
           PillWeeklyTrackerGrid(
             copy: widget.copy,
             days: days,
             columns: widget.dailyDoseGoal,
+            doseMoments: widget.doseMoments,
             todayStatuses: widget.cycleStatuses,
             onTapNext: widget.onMarkTaken,
             onLongPressNext: widget.onMarkSkipped,
@@ -206,143 +201,207 @@ class _HeaderActionButton extends StatelessWidget {
   }
 }
 
-class _WeekNavigator extends StatelessWidget {
-  const _WeekNavigator({
-    required this.copy,
-    required this.weekOffset,
-    required this.onPrevious,
-    required this.onNext,
-  });
-
-  final AppCopy copy;
-  final int weekOffset;
-  final VoidCallback onPrevious;
-  final VoidCallback onNext;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = weekOffset == 0
-        ? copy.todayLabel
-        : weekOffset < 0
-            ? '${copy.todayLabel} - ${weekOffset.abs()}'
-            : '${copy.todayLabel} + $weekOffset';
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _RoundGhostButton(
-          icon: Icons.chevron_left_rounded,
-          onTap: onPrevious,
-        ),
-        const SizedBox(width: 22),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF352391),
-                fontSize: 20,
-              ),
-        ),
-        const SizedBox(width: 22),
-        _RoundGhostButton(
-          icon: Icons.chevron_right_rounded,
-          onTap: onNext,
-        ),
-      ],
-    );
-  }
-}
-
-class _RoundGhostButton extends StatelessWidget {
-  const _RoundGhostButton({
-    required this.icon,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkResponse(
-      onTap: onTap,
-      radius: 24,
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2EDFF),
-          borderRadius: BorderRadius.circular(23),
-        ),
-        child: Icon(icon, color: const Color(0xFF5646BC), size: 24),
-      ),
-    );
-  }
-}
-
 class _DoseStepper extends StatelessWidget {
   const _DoseStepper({
     required this.copy,
     required this.value,
+    required this.doseMoments,
     required this.min,
     required this.max,
     required this.onChanged,
+    required this.onDoseMomentsChanged,
   });
 
   final AppCopy copy;
   final int value;
+  final List<String> doseMoments;
   final int min;
   final int max;
   final Future<void> Function(int value) onChanged;
+  final Future<void> Function(List<String> value) onDoseMomentsChanged;
 
   @override
   Widget build(BuildContext context) {
     final canDecrease = value > min;
     final canIncrease = value < max;
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              copy.perDay,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF352391),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _CircleIconButton(
+              icon: Icons.remove,
+              enabled: canDecrease,
+              onPressed: () => onChanged(value - 1),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '$value',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF352391),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              copy.doseUnit,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF352391),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _CircleIconButton(
+              icon: Icons.add,
+              enabled: canIncrease,
+              onPressed: () => onChanged(value + 1),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (value <= 3)
+          _DoseMomentCheckboxRow(
+            copy: copy,
+            goal: value,
+            doseMoments: doseMoments,
+            onChanged: onDoseMomentsChanged,
+          )
+        else
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 18,
+            runSpacing: 8,
+            children: List.generate(
+              value,
+              (index) => _DoseGuideChip(
+                label: copy.doseCountLabel(index + 1),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
 
+class _DoseMomentCheckboxRow extends StatelessWidget {
+  const _DoseMomentCheckboxRow({
+    required this.copy,
+    required this.goal,
+    required this.doseMoments,
+    required this.onChanged,
+  });
+
+  final AppCopy copy;
+  final int goal;
+  final List<String> doseMoments;
+  final Future<void> Function(List<String>) onChanged;
+
+  static const _options = ['morning', 'lunch', 'evening'];
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = List<String>.from(doseMoments);
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 12,
+      runSpacing: 8,
+      children: _options.map((moment) {
+        final checked = selected.contains(moment);
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => onChanged(_toggleMoment(selected, moment, goal)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: Checkbox(
+                  value: checked,
+                  onChanged: (_) => onChanged(_toggleMoment(selected, moment, goal)),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _momentLabel(copy, moment),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF6C6896),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  List<String> _toggleMoment(List<String> selected, String moment, int goal) {
+    final next = List<String>.from(selected);
+    if (next.contains(moment)) {
+      return next;
+    }
+    if (next.length >= goal) {
+      next.removeLast();
+    }
+    next.add(moment);
+    return _orderedMoments(next);
+  }
+
+  List<String> _orderedMoments(List<String> values) {
+    return _options.where(values.contains).toList();
+  }
+}
+
+class _DoseGuideChip extends StatelessWidget {
+  const _DoseGuideChip({
+    required this.label,
+  });
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          copy.perDay,
+          label,
           style: const TextStyle(
-            fontSize: 18,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF352391),
+            color: Color(0xFF6C6896),
           ),
-        ),
-        const SizedBox(width: 8),
-        _CircleIconButton(
-          icon: Icons.remove,
-          enabled: canDecrease,
-          onPressed: () => onChanged(value - 1),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          '$value',
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF352391),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          copy.doseUnit,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF352391),
-          ),
-        ),
-        const SizedBox(width: 8),
-        _CircleIconButton(
-          icon: Icons.add,
-          enabled: canIncrease,
-          onPressed: () => onChanged(value + 1),
         ),
       ],
     );
+  }
+}
+
+String _momentLabel(AppCopy copy, String moment) {
+  switch (moment) {
+    case 'morning':
+      return copy.morningLabel;
+    case 'lunch':
+      return copy.lunchLabel;
+    case 'evening':
+      return copy.eveningLabel;
+    default:
+      return moment;
   }
 }
 

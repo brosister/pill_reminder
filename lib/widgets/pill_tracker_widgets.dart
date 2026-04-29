@@ -11,6 +11,7 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
     required this.copy,
     required this.days,
     required this.columns,
+    required this.doseMoments,
     required this.todayStatuses,
     required this.onTapNext,
     required this.onLongPressNext,
@@ -20,6 +21,7 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
   final AppCopy copy;
   final List<PillTrackerDay> days;
   final int columns;
+  final List<String> doseMoments;
   final List<String> todayStatuses;
   final Future<void> Function(int slotIndex) onTapNext;
   final Future<void> Function(int slotIndex) onLongPressNext;
@@ -30,7 +32,11 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
     final columnCount = math.max(1, columns);
     return Column(
       children: [
-        _TrackerTableHeader(copy: copy, columnCount: columnCount),
+        _TrackerTableHeader(
+          copy: copy,
+          columnCount: columnCount,
+          doseMoments: doseMoments,
+        ),
         const SizedBox(height: 10),
         ...List.generate(days.length, (index) {
           final day = days[index];
@@ -95,10 +101,12 @@ class _TrackerTableHeader extends StatelessWidget {
   const _TrackerTableHeader({
     required this.copy,
     required this.columnCount,
+    required this.doseMoments,
   });
 
   final AppCopy copy;
   final int columnCount;
+  final List<String> doseMoments;
 
   @override
   Widget build(BuildContext context) {
@@ -137,94 +145,59 @@ class _TrackerTableHeader extends StatelessWidget {
   }
 
   List<_ColumnHeaderData> _buildHeaders() {
-    switch (columnCount) {
-      case 1:
-        return [
-          _ColumnHeaderData(
-            iconAsset: 'assets/icons/sun.png',
-            label: copy.morningLabel,
-          ),
-        ];
-      case 2:
-        return [
-          _ColumnHeaderData(
-            iconAsset: 'assets/icons/sun.png',
-            label: copy.morningLabel,
-          ),
-          _ColumnHeaderData(
-            iconAsset: 'assets/icons/moon.png',
-            label: copy.eveningLabel,
-          ),
-        ];
-      case 3:
-        return [
-          _ColumnHeaderData(
-            iconAsset: 'assets/icons/sun.png',
-            label: copy.morningLabel,
-          ),
-          _ColumnHeaderData(
-            iconAsset: 'assets/icons/sun.png',
-            label: copy.lunchLabel,
-          ),
-          _ColumnHeaderData(
-            iconAsset: 'assets/icons/moon.png',
-            label: copy.eveningLabel,
-          ),
-        ];
-      default:
-        return List.generate(columnCount, (index) {
-          if (index == 0) {
-            return _ColumnHeaderData(
-              iconAsset: 'assets/icons/sun.png',
-              label: copy.morningLabel,
-            );
-          }
-          if (index == 1) {
-            return _ColumnHeaderData(
-              iconAsset: 'assets/icons/sun.png',
-              label: copy.lunchLabel,
-            );
-          }
-          return _ColumnHeaderData(
-            iconAsset: 'assets/icons/moon.png',
-            label: copy.eveningLabel,
-          );
-        });
+    if (columnCount <= 3) {
+      final normalized = List<String>.from(doseMoments);
+      while (normalized.length < columnCount) {
+        normalized.add('dose_${normalized.length + 1}');
+      }
+      return List.generate(columnCount, (index) {
+        final moment = normalized[index];
+        return _ColumnHeaderData(
+          iconAsset: _momentIcon(moment),
+          label: _momentLabel(copy, moment),
+        );
+      });
     }
+    return List.generate(
+      columnCount,
+      (index) => _ColumnHeaderData(label: copy.doseCountLabel(index + 1)),
+    );
   }
 }
 
 class _ColumnHeaderData {
   const _ColumnHeaderData({
-    required this.iconAsset,
     required this.label,
+    this.iconAsset,
   });
 
-  final String iconAsset;
   final String label;
+  final String? iconAsset;
 }
 
 class _ColumnHeader extends StatelessWidget {
   const _ColumnHeader({
-    required this.iconAsset,
     required this.label,
+    this.iconAsset,
   });
 
-  final String iconAsset;
   final String label;
+  final String? iconAsset;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Image.asset(
-          iconAsset,
-          width: 15,
-          height: 15,
-          fit: BoxFit.contain,
-        ),
-        const SizedBox(width: 6),
+        if (iconAsset != null) ...[
+          Image.asset(
+            iconAsset!,
+            width: 15,
+            height: 15,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 6),
+        ],
         Flexible(
           child: Text(
             label,
@@ -239,6 +212,38 @@ class _ColumnHeader extends StatelessWidget {
       ],
     );
   }
+}
+
+String _momentLabel(AppCopy copy, String moment) {
+  switch (moment) {
+    case 'morning':
+      return copy.morningLabel;
+    case 'lunch':
+      return copy.lunchLabel;
+    case 'evening':
+      return copy.eveningLabel;
+    default:
+      return copy.doseCountLabel(_doseIndex(moment));
+  }
+}
+
+String? _momentIcon(String moment) {
+  switch (moment) {
+    case 'morning':
+    case 'lunch':
+      return 'assets/icons/sun.png';
+    case 'evening':
+      return 'assets/icons/moon.png';
+    default:
+      return null;
+  }
+}
+
+int _doseIndex(String value) {
+  if (value.startsWith('dose_')) {
+    return int.tryParse(value.replaceFirst('dose_', '')) ?? 1;
+  }
+  return 1;
 }
 
 class _TrackerRowCard extends StatelessWidget {
@@ -270,53 +275,92 @@ class _TrackerRowCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0FA594E8),
-            blurRadius: 24,
-            offset: Offset(0, 8),
+            color: Color(0x10B8B7D8),
+            blurRadius: 26,
+            offset: Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Color(0x08FFFFFF),
+            blurRadius: 8,
+            offset: Offset(0, -2),
           ),
         ],
+        border: Border.all(
+          color: Color(0xFFF5F2FD),
+          width: 0.8,
+        ),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 92,
-            child: _DayCell(copy: copy, day: day),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Row(
-              children: List.generate(statuses.length, (slotIndex) {
-                final status = statuses[slotIndex];
-                final canTapSlot =
-                    day.isToday && status == PillTrackerSlotStatus.pending;
-                final canWarnSlot =
-                    !day.isToday && status == PillTrackerSlotStatus.pending;
-                final highlightCurrent =
-                    canTapSlot && slotIndex == todayStatuses.length;
-
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: slotIndex == 0 ? 0 : 6,
-                      right: slotIndex == statuses.length - 1 ? 0 : 0,
-                    ),
-                    child: PillBlisterSlot(
-                      status: status,
-                      showPill: status == PillTrackerSlotStatus.pending,
-                      highlight: highlightCurrent,
-                      onTap: canTapSlot
-                          ? () => onTapNext(slotIndex)
-                          : (canWarnSlot ? onTapUnavailable : null),
-                      onLongPress: canTapSlot
-                          ? () => onLongPressNext(slotIndex)
-                          : null,
-                    ),
-                  ),
-                );
-              }),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            SizedBox(
+              width: 92,
+              child: _DayCell(copy: copy, day: day),
             ),
-          ),
-        ],
+            const _SoftColumnDivider(),
+            Expanded(
+              child: Row(
+                children: List.generate(statuses.length, (slotIndex) {
+                  final status = statuses[slotIndex];
+                  final canTapSlot =
+                      day.isToday && status == PillTrackerSlotStatus.pending;
+                  final canWarnSlot =
+                      !day.isToday && status == PillTrackerSlotStatus.pending;
+                  final highlightCurrent =
+                      canTapSlot && slotIndex == todayStatuses.length;
+
+                  return Expanded(
+                    child: Row(
+                      children: [
+                        if (slotIndex > 0) const _SoftColumnDivider(),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: PillBlisterSlot(
+                              status: status,
+                              showPill: status == PillTrackerSlotStatus.pending,
+                              highlight: highlightCurrent,
+                              onTap: canTapSlot
+                                  ? () => onTapNext(slotIndex)
+                                  : (canWarnSlot ? onTapUnavailable : null),
+                              onLongPress: canTapSlot
+                                  ? () => onLongPressNext(slotIndex)
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SoftColumnDivider extends StatelessWidget {
+  const _SoftColumnDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0x00EEEAFB),
+            const Color(0xFFEDE8FA),
+            const Color(0xFFEDE8FA),
+            const Color(0x00EEEAFB),
+          ],
+        ),
       ),
     );
   }
@@ -372,11 +416,12 @@ class _DayCell extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 copy.monthDay(day.date),
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -387,6 +432,7 @@ class _DayCell extends StatelessWidget {
               if (day.isToday)
                 Text(
                   copy.todayLabel,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -482,11 +528,11 @@ class PillBlisterSlot extends StatelessWidget {
                 Positioned.fill(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 5,
+                      horizontal: 4,
+                      vertical: 3,
                     ),
                     child: Transform.scale(
-                      scale: highlight ? 1.06 : 1.02,
+                      scale: highlight ? 1.12 : 1.08,
                       child: Image.asset(
                         'assets/pills/pill.png',
                         fit: BoxFit.contain,
