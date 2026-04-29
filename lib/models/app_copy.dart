@@ -93,8 +93,18 @@ class AppCopy {
   String get checkedToday => isKorean ? '오늘 체크한 약 종류' : 'Checked medications';
   String get medsCountSetting => isKorean ? '등록된 약 개수' : 'Saved medications';
   String get trackerTitle => isKorean ? '복약 트래커' : 'Pill Tracker';
+  String get todayLabel => isKorean ? '오늘' : 'Today';
   String get perDay => isKorean ? '하루' : 'Per day';
   String get doseUnit => isKorean ? '회' : 'times';
+  String get weekdayHeader => isKorean ? '요일' : 'Day';
+  String get morningLabel => isKorean ? '아침' : 'Morning';
+  String get lunchLabel => isKorean ? '점심' : 'Lunch';
+  String get eveningLabel => isKorean ? '저녁' : 'Evening';
+  String get reminderCardTitle => isKorean ? '복약 시간 알림' : 'Medication alerts';
+  String get reminderCardBody => isKorean
+      ? '설정한 시간에 알림을 받을 수 있어요.'
+      : 'Get reminders at your scheduled times.';
+  String get reminderSettingsCta => isKorean ? '알림 설정' : 'Alert settings';
   String get notificationGuide => isKorean
       ? '리마인더는 설정값 기준으로 다시 예약됩니다.'
       : 'Reminders are rescheduled based on your current settings.';
@@ -233,5 +243,9 @@ class AppCopy {
     return isKorean
         ? '오늘은 $day이에요!'
         : 'Today is $day.';
+  }
+
+  String monthDay(DateTime value) {
+    return '${value.month}.${value.day}';
   }
 }

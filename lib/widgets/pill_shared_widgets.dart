@@ -221,17 +221,17 @@ class PillBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(14, 8, 14, 12 + extraBottomPadding),
+      padding: EdgeInsets.fromLTRB(14, 8, 14, 8 + extraBottomPadding),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
           child: Container(
-            height: 92,
-            padding: const EdgeInsets.all(10),
+            height: 80,
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
             ),
             child: Row(
@@ -270,7 +270,7 @@ class _PillBottomNavItem extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(22),
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
@@ -279,7 +279,7 @@ class _PillBottomNavItem extends StatelessWidget {
               color: isSelected
                   ? data.color.withValues(alpha: 0.16)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(22),
             ),
             child: Center(
               child: Column(
@@ -287,11 +287,11 @@ class _PillBottomNavItem extends StatelessWidget {
                 children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 220),
-                    width: isSelected ? 40 : 36,
-                    height: isSelected ? 40 : 36,
+                    width: isSelected ? 42 : 36,
+                    height: isSelected ? 42 : 36,
                     decoration: BoxDecoration(
                       color: isSelected ? data.color : const Color(0xFFF3F0FF),
-                      borderRadius: BorderRadius.circular(15),
+                      shape: BoxShape.circle,
                     ),
                     child: Icon(
                       data.icon,
@@ -299,7 +299,7 @@ class _PillBottomNavItem extends StatelessWidget {
                       size: 20,
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 4),
                   Text(
                     data.label,
                     maxLines: 1,

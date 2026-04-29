@@ -28,90 +28,33 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final columnCount = math.max(1, columns);
-    final labelWidth = copy.isKorean ? 34.0 : 44.0;
-    const frameAspectRatio = 284 / 475;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final usableWidth = constraints.maxWidth - labelWidth - 12;
-        final slotWidth = usableWidth / columnCount;
-        final slotHeight = slotWidth * frameAspectRatio;
-
-        return ListView.builder(
-          physics: const BouncingScrollPhysics(),
-          itemCount: days.length,
-          itemBuilder: (context, index) {
-            final day = days[index];
-            final isToday = day.isToday;
-            final taken = day.taken;
-            final skipped = day.skipped;
-            final date = day.date;
-
-            final statuses = isToday
-                ? _buildTodayStatuses(todayStatuses, columnCount)
-                : _buildHistoricalStatuses(
-                    taken: taken,
-                    skipped: skipped,
-                    columns: columnCount,
-                  );
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: labelWidth,
-                  child: Text(
-                    copy.weekdayShort(date).toUpperCase(),
-                    textAlign: TextAlign.left,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.8,
-                          color: isToday
-                              ? const Color(0xFF25164D)
-                              : const Color(0xFF6A5D86),
-                        ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Row(
-                    children: List.generate(columnCount, (slotIndex) {
-                      final status = statuses[slotIndex];
-                      final canTapSlot =
-                          isToday && status == PillTrackerSlotStatus.pending;
-                      final canWarnSlot =
-                          !isToday && status == PillTrackerSlotStatus.pending;
-                      final highlightCurrent = canTapSlot &&
-                          slotIndex == todayStatuses.length;
-
-                      return SizedBox(
-                        width: slotWidth,
-                        height: slotHeight,
-                        child: PillBlisterSlot(
-                          status: status,
-                          showPill: status == PillTrackerSlotStatus.pending,
-                          highlight: highlightCurrent,
-                          rowIndex: index,
-                          rowCount: days.length,
-                          columnIndex: slotIndex,
-                          columnCount: columnCount,
-                          onTap: canTapSlot
-                              ? () => onTapNext(slotIndex)
-                              : (canWarnSlot ? onTapUnavailable : null),
-                          onLongPress:
-                              canTapSlot
-                                  ? () => onLongPressNext(slotIndex)
-                                  : null,
-                        ),
-                      );
-                    }),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    return Column(
+      children: [
+        _TrackerTableHeader(copy: copy, columnCount: columnCount),
+        const SizedBox(height: 10),
+        ...List.generate(days.length, (index) {
+          final day = days[index];
+          final statuses = day.isToday
+              ? _buildTodayStatuses(todayStatuses, columnCount)
+              : _buildHistoricalStatuses(
+                  taken: day.taken,
+                  skipped: day.skipped,
+                  columns: columnCount,
+                );
+          return Padding(
+            padding: EdgeInsets.only(bottom: index == days.length - 1 ? 0 : 10),
+            child: _TrackerRowCard(
+              copy: copy,
+              day: day,
+              statuses: statuses,
+              todayStatuses: todayStatuses,
+              onTapNext: onTapNext,
+              onLongPressNext: onLongPressNext,
+              onTapUnavailable: onTapUnavailable,
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -139,13 +82,322 @@ class PillWeeklyTrackerGrid extends StatelessWidget {
         math.max(0, math.min(available - filledTaken, skipped));
 
     return List.generate(columns, (index) {
-      if (index >= available) return PillTrackerSlotStatus.disabled;
       if (index < filledTaken) return PillTrackerSlotStatus.taken;
       if (index < filledTaken + filledSkipped) {
         return PillTrackerSlotStatus.skipped;
       }
       return PillTrackerSlotStatus.pending;
     });
+  }
+}
+
+class _TrackerTableHeader extends StatelessWidget {
+  const _TrackerTableHeader({
+    required this.copy,
+    required this.columnCount,
+  });
+
+  final AppCopy copy;
+  final int columnCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final headers = _buildHeaders();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              copy.weekdayHeader,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF8E89B1),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: List.generate(columnCount, (index) {
+                final item = headers[index];
+                return Expanded(
+                  child: _ColumnHeader(
+                    iconAsset: item.iconAsset,
+                    label: item.label,
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<_ColumnHeaderData> _buildHeaders() {
+    switch (columnCount) {
+      case 1:
+        return [
+          _ColumnHeaderData(
+            iconAsset: 'assets/icons/sun.png',
+            label: copy.morningLabel,
+          ),
+        ];
+      case 2:
+        return [
+          _ColumnHeaderData(
+            iconAsset: 'assets/icons/sun.png',
+            label: copy.morningLabel,
+          ),
+          _ColumnHeaderData(
+            iconAsset: 'assets/icons/moon.png',
+            label: copy.eveningLabel,
+          ),
+        ];
+      case 3:
+        return [
+          _ColumnHeaderData(
+            iconAsset: 'assets/icons/sun.png',
+            label: copy.morningLabel,
+          ),
+          _ColumnHeaderData(
+            iconAsset: 'assets/icons/sun.png',
+            label: copy.lunchLabel,
+          ),
+          _ColumnHeaderData(
+            iconAsset: 'assets/icons/moon.png',
+            label: copy.eveningLabel,
+          ),
+        ];
+      default:
+        return List.generate(columnCount, (index) {
+          if (index == 0) {
+            return _ColumnHeaderData(
+              iconAsset: 'assets/icons/sun.png',
+              label: copy.morningLabel,
+            );
+          }
+          if (index == 1) {
+            return _ColumnHeaderData(
+              iconAsset: 'assets/icons/sun.png',
+              label: copy.lunchLabel,
+            );
+          }
+          return _ColumnHeaderData(
+            iconAsset: 'assets/icons/moon.png',
+            label: copy.eveningLabel,
+          );
+        });
+    }
+  }
+}
+
+class _ColumnHeaderData {
+  const _ColumnHeaderData({
+    required this.iconAsset,
+    required this.label,
+  });
+
+  final String iconAsset;
+  final String label;
+}
+
+class _ColumnHeader extends StatelessWidget {
+  const _ColumnHeader({
+    required this.iconAsset,
+    required this.label,
+  });
+
+  final String iconAsset;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Image.asset(
+          iconAsset,
+          width: 15,
+          height: 15,
+          fit: BoxFit.contain,
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF6C6896),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TrackerRowCard extends StatelessWidget {
+  const _TrackerRowCard({
+    required this.copy,
+    required this.day,
+    required this.statuses,
+    required this.todayStatuses,
+    required this.onTapNext,
+    required this.onLongPressNext,
+    required this.onTapUnavailable,
+  });
+
+  final AppCopy copy;
+  final PillTrackerDay day;
+  final List<PillTrackerSlotStatus> statuses;
+  final List<String> todayStatuses;
+  final Future<void> Function(int slotIndex) onTapNext;
+  final Future<void> Function(int slotIndex) onLongPressNext;
+  final Future<void> Function() onTapUnavailable;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 76,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(232),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0FA594E8),
+            blurRadius: 24,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 92,
+            child: _DayCell(copy: copy, day: day),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Row(
+              children: List.generate(statuses.length, (slotIndex) {
+                final status = statuses[slotIndex];
+                final canTapSlot =
+                    day.isToday && status == PillTrackerSlotStatus.pending;
+                final canWarnSlot =
+                    !day.isToday && status == PillTrackerSlotStatus.pending;
+                final highlightCurrent =
+                    canTapSlot && slotIndex == todayStatuses.length;
+
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: slotIndex == 0 ? 0 : 6,
+                      right: slotIndex == statuses.length - 1 ? 0 : 0,
+                    ),
+                    child: PillBlisterSlot(
+                      status: status,
+                      showPill: status == PillTrackerSlotStatus.pending,
+                      highlight: highlightCurrent,
+                      onTap: canTapSlot
+                          ? () => onTapNext(slotIndex)
+                          : (canWarnSlot ? onTapUnavailable : null),
+                      onLongPress: canTapSlot
+                          ? () => onLongPressNext(slotIndex)
+                          : null,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  const _DayCell({
+    required this.copy,
+    required this.day,
+  });
+
+  final AppCopy copy;
+  final PillTrackerDay day;
+
+  @override
+  Widget build(BuildContext context) {
+    final bubbleColor = day.isToday
+        ? const Color(0xFF7B65FF)
+        : day.date.weekday == DateTime.sunday
+            ? const Color(0xFFFFE9EC)
+            : const Color(0xFFF1F1FA);
+    final textColor = day.isToday
+        ? Colors.white
+        : day.date.weekday == DateTime.sunday
+            ? const Color(0xFFF04D5E)
+            : const Color(0xFF56527F);
+
+    final dateColor = day.isToday
+        ? const Color(0xFF7B65FF)
+        : day.date.weekday == DateTime.sunday
+            ? const Color(0xFFF04D5E)
+            : const Color(0xFF757199);
+
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            copy.weekdayShort(day.date),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: textColor,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                copy.monthDay(day.date),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: dateColor,
+                ),
+              ),
+              const SizedBox(height: 2),
+              if (day.isToday)
+                Text(
+                  copy.todayLabel,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF7B65FF),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -171,10 +423,6 @@ class PillBlisterSlot extends StatelessWidget {
     required this.status,
     required this.showPill,
     required this.highlight,
-    required this.rowIndex,
-    required this.rowCount,
-    required this.columnIndex,
-    required this.columnCount,
     this.onTap,
     this.onLongPress,
   });
@@ -182,99 +430,78 @@ class PillBlisterSlot extends StatelessWidget {
   final PillTrackerSlotStatus status;
   final bool showPill;
   final bool highlight;
-  final int rowIndex;
-  final int rowCount;
-  final int columnIndex;
-  final int columnCount;
   final Future<void> Function()? onTap;
   final Future<void> Function()? onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    final pillOpacity = showPill ? 1.0 : 0.0;
-    final isDisabled = status == PillTrackerSlotStatus.disabled;
-    final surfaceOpacity = isDisabled ? 0.3 : 1.0;
-
-    return Opacity(
-      opacity: surfaceOpacity,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: _borderRadiusForPosition(),
-          splashColor: const Color(0xFF2A7F62).withAlpha(28),
-          highlightColor: const Color(0xFF2A7F62).withAlpha(18),
-          onTap: onTap == null
-              ? null
-              : () async {
-                  await HapticFeedback.lightImpact();
-                  await onTap!.call();
-                },
-          onLongPress:
-              onLongPress == null
-                  ? null
-                  : () async {
-                      await HapticFeedback.mediumImpact();
-                      await onLongPress!.call();
-                    },
+    final opacity = status == PillTrackerSlotStatus.skipped ? 0.3 : 1.0;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        splashColor: const Color(0xFF6A59ED).withAlpha(22),
+        highlightColor: const Color(0xFF6A59ED).withAlpha(14),
+        onTap: onTap == null
+            ? null
+            : () async {
+                await HapticFeedback.lightImpact();
+                await onTap!.call();
+              },
+        onLongPress: onLongPress == null
+            ? null
+            : () async {
+                await HapticFeedback.mediumImpact();
+                await onLongPress!.call();
+              },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 44,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(18)),
           child: Stack(
-            fit: StackFit.expand,
+            alignment: Alignment.center,
             children: [
               Positioned.fill(
-                child: _BlisterFrame(
-                  borderRadius: _borderRadiusForPosition(),
-                  columnIndex: columnIndex,
-                  columnCount: columnCount,
-                ),
-              ),
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: _borderRadiusForPosition(),
-                  child: Opacity(
-                    opacity: pillOpacity,
-                    child: Image.asset(
-                      'assets/pills/pill.png',
-                      fit: BoxFit.cover,
-                      alignment: Alignment.center,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                    ),
-                  ),
-                ),
-              ),
-              if (status == PillTrackerSlotStatus.skipped)
-                const Positioned.fill(child: _SkippedOverlay()),
-              if (highlight)
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: _borderRadiusForPosition(),
-                      border: Border.all(
-                        color: const Color(0xFF2A7F62).withAlpha(84),
-                        width: 1,
+                child: Opacity(
+                  opacity: opacity,
+                  child: Transform.scale(
+                    scale: highlight ? 1.12 : 1.1,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 1),
+                      child: Image.asset(
+                        'assets/blister/frame.png',
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
                     ),
                   ),
                 ),
+              ),
+              if (showPill)
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 5,
+                    ),
+                    child: Transform.scale(
+                      scale: highlight ? 1.06 : 1.02,
+                      child: Image.asset(
+                        'assets/pills/pill.png',
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                ),
+              if (status == PillTrackerSlotStatus.skipped)
+                const Positioned.fill(child: _SkippedOverlay()),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  BorderRadius _borderRadiusForPosition() {
-    const radius = Radius.circular(20);
-    return BorderRadius.only(
-      topLeft: rowIndex == 0 && columnIndex == 0 ? radius : Radius.zero,
-      topRight: rowIndex == 0 && columnIndex == columnCount - 1
-          ? radius
-          : Radius.zero,
-      bottomLeft: rowIndex == rowCount - 1 && columnIndex == 0
-          ? radius
-          : Radius.zero,
-      bottomRight:
-          rowIndex == rowCount - 1 && columnIndex == columnCount - 1
-              ? radius
-              : Radius.zero,
     );
   }
 }
@@ -284,9 +511,7 @@ class _SkippedOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _SkippedPainter(),
-    );
+    return CustomPaint(painter: _SkippedPainter());
   }
 }
 
@@ -294,20 +519,19 @@ class _SkippedPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF6A5D86).withAlpha(140)
-      ..strokeWidth = 2.4
-      ..style = PaintingStyle.stroke
+      ..color = const Color(0xAA6A688A)
+      ..strokeWidth = 2.2
       ..strokeCap = StrokeCap.round;
-
-    final inset = size.shortestSide * 0.26;
+    final insetX = size.width * 0.23;
+    final insetY = size.height * 0.27;
     canvas.drawLine(
-      Offset(inset, inset),
-      Offset(size.width - inset, size.height - inset),
+      Offset(insetX, insetY),
+      Offset(size.width - insetX, size.height - insetY),
       paint,
     );
     canvas.drawLine(
-      Offset(size.width - inset, inset),
-      Offset(inset, size.height - inset),
+      Offset(size.width - insetX, insetY),
+      Offset(insetX, size.height - insetY),
       paint,
     );
   }
@@ -316,129 +540,4 @@ class _SkippedPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _BlisterFrame extends StatelessWidget {
-  const _BlisterFrame({
-    required this.borderRadius,
-    required this.columnIndex,
-    required this.columnCount,
-  });
-
-  final BorderRadius borderRadius;
-  final int columnIndex;
-  final int columnCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final slice = _sliceForColumn();
-          return ClipRect(
-            child: Align(
-              alignment: slice.alignment,
-              child: SizedBox(
-                width: constraints.maxWidth / slice.visibleFraction,
-                height: constraints.maxHeight,
-                child: Image.asset(
-                  'assets/blister/frame.png',
-                  fit: BoxFit.fill,
-                  errorBuilder: (_, __, ___) => const _BlisterFallbackFill(),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  _FrameSlice _sliceForColumn() {
-    if (columnCount <= 1) {
-      return const _FrameSlice(
-        alignment: Alignment.center,
-        visibleFraction: 1,
-      );
-    }
-    if (columnIndex == 0) {
-      return const _FrameSlice(
-        alignment: Alignment.centerLeft,
-        visibleFraction: 0.52,
-      );
-    }
-    if (columnIndex == columnCount - 1) {
-      return const _FrameSlice(
-        alignment: Alignment.centerRight,
-        visibleFraction: 0.52,
-      );
-    }
-    return const _FrameSlice(
-      alignment: Alignment.center,
-      visibleFraction: 0.26,
-    );
-  }
-}
-
-class _FrameSlice {
-  const _FrameSlice({
-    required this.alignment,
-    required this.visibleFraction,
-  });
-
-  final Alignment alignment;
-  final double visibleFraction;
-}
-
-class _BlisterFallbackFill extends StatelessWidget {
-  const _BlisterFallbackFill();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFFE8EBF4),
-            const Color(0xFFD8DDEA),
-            const Color(0xFFF3F6FB),
-          ],
-          stops: const [0.0, 0.6, 1.0],
-        ),
-      ),
-      child: const _BlisterFallbackRim(),
-    );
-  }
-}
-
-class _BlisterFallbackRim extends StatelessWidget {
-  const _BlisterFallbackRim();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF25164D).withAlpha(26),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(3),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: Colors.white.withAlpha(140),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-enum PillTrackerSlotStatus { pending, taken, skipped, disabled }
+enum PillTrackerSlotStatus { pending, taken, skipped }

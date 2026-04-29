@@ -478,6 +478,8 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
         onDoseChanged: _setDailyDoseGoal,
         onMarkTaken: (slotIndex) => _markWholeCycle(false, slotIndex),
         onMarkSkipped: (slotIndex) => _markWholeCycle(true, slotIndex),
+        onOpenHistory: _openHistory,
+        onOpenSettings: _openSettings,
         bottomPadding: bottomOverlayPadding,
       ),
       StatsDashboardPage(
@@ -493,27 +495,29 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
 
     return Scaffold(
       extendBody: true,
-      appBar: AppBar(
-        title: Text(
-          _selectedTab == 0 ? copy.trackerTitle : copy.statsTitle,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF25164D),
+      appBar: _selectedTab == 0
+          ? null
+          : AppBar(
+              title: Text(
+                copy.statsTitle,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF25164D),
+                    ),
               ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: copy.historyTitle,
-            onPressed: _openHistory,
-            icon: const Icon(Icons.history_rounded),
-          ),
-          IconButton(
-            tooltip: copy.settingsTitle,
-            onPressed: _openSettings,
-            icon: const Icon(Icons.settings_rounded),
-          ),
-        ],
-      ),
+              actions: [
+                IconButton(
+                  tooltip: copy.historyTitle,
+                  onPressed: _openHistory,
+                  icon: const Icon(Icons.history_rounded),
+                ),
+                IconButton(
+                  tooltip: copy.settingsTitle,
+                  onPressed: _openSettings,
+                  icon: const Icon(Icons.settings_rounded),
+                ),
+              ],
+            ),
       body: Stack(
         children: [
           Positioned.fill(
