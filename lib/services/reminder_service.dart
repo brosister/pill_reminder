@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,27 +9,19 @@ import 'package:timezone/timezone.dart' as tz;
 class ReminderSettings {
   const ReminderSettings({
     required this.enabled,
-    required this.intervalHours,
-    required this.startHour,
-    required this.endHour,
+    required this.slotTimes,
   });
 
   final bool enabled;
-  final int intervalHours;
-  final int startHour;
-  final int endHour;
+  final Map<String, int> slotTimes;
 
   ReminderSettings copyWith({
     bool? enabled,
-    int? intervalHours,
-    int? startHour,
-    int? endHour,
+    Map<String, int>? slotTimes,
   }) {
     return ReminderSettings(
       enabled: enabled ?? this.enabled,
-      intervalHours: intervalHours ?? this.intervalHours,
-      startHour: startHour ?? this.startHour,
-      endHour: endHour ?? this.endHour,
+      slotTimes: slotTimes ?? this.slotTimes,
     );
   }
 }
@@ -37,9 +31,7 @@ class ReminderService {
   static final ReminderService instance = ReminderService._();
 
   static const _enabledKey = 'pill_reminder_enabled';
-  static const _intervalKey = 'pill_reminder_interval_hours';
-  static const _startHourKey = 'pill_reminder_start_hour';
-  static const _endHourKey = 'pill_reminder_end_hour';
+  static const _slotTimesKey = 'pill_reminder_slot_times';
   static const _notificationBaseId = 5100;
   static const _notificationMaxCount = 64;
 
@@ -81,20 +73,21 @@ class ReminderService {
 
   Future<ReminderSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final rawSlotTimes = prefs.getString(_slotTimesKey);
     return ReminderSettings(
       enabled: prefs.getBool(_enabledKey) ?? true,
-      intervalHours: prefs.getInt(_intervalKey) ?? 8,
-      startHour: prefs.getInt(_startHourKey) ?? 8,
-      endHour: prefs.getInt(_endHourKey) ?? 20,
+      slotTimes: rawSlotTimes == null
+          ? const {}
+          : (jsonDecode(rawSlotTimes) as Map<String, dynamic>).map(
+              (key, value) => MapEntry(key, value as int),
+            ),
     );
   }
 
   Future<void> saveSettings(ReminderSettings settings) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_enabledKey, settings.enabled);
-    await prefs.setInt(_intervalKey, settings.intervalHours);
-    await prefs.setInt(_startHourKey, settings.startHour);
-    await prefs.setInt(_endHourKey, settings.endHour);
+    await prefs.setString(_slotTimesKey, jsonEncode(settings.slotTimes));
   }
 
   Future<void> cancelMedicationReminders() async {
@@ -105,7 +98,7 @@ class ReminderService {
 
   Future<void> syncMedicationReminders({
     required ReminderSettings settings,
-    required int dailyDoses,
+    required List<String> slotKeys,
     required bool isKorean,
   }) async {
     await initialize();
@@ -137,17 +130,18 @@ class ReminderService {
 
     for (var dayOffset = 0; dayOffset < 7; dayOffset++) {
       final baseDate = now.add(Duration(days: dayOffset));
-      for (var doseIndex = 0; doseIndex < dailyDoses; doseIndex++) {
-        final hour = settings.startHour + (doseIndex * settings.intervalHours);
-        if (hour > settings.endHour || hour > 23) {
-          continue;
-        }
+      for (var doseIndex = 0; doseIndex < slotKeys.length; doseIndex++) {
+        final minutes = settings.slotTimes[slotKeys[doseIndex]] ??
+            defaultReminderMinutes(slotKeys[doseIndex], doseIndex);
+        final hour = minutes ~/ 60;
+        final minute = minutes % 60;
         final scheduled = tz.TZDateTime(
           tz.local,
           baseDate.year,
           baseDate.month,
           baseDate.day,
           hour,
+          minute,
         );
         if (!scheduled.isAfter(now)) {
           continue;
@@ -166,6 +160,20 @@ class ReminderService {
         );
         id += 1;
       }
+    }
+  }
+
+  int defaultReminderMinutes(String slotKey, int slotIndex) {
+    switch (slotKey) {
+      case 'morning':
+        return 8 * 60;
+      case 'lunch':
+        return 13 * 60;
+      case 'evening':
+        return 20 * 60;
+      default:
+        final fallback = 8 * 60 + (slotIndex * 180);
+        return fallback.clamp(0, (23 * 60) + 59);
     }
   }
 }

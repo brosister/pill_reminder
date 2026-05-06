@@ -64,15 +64,8 @@ class _PillTrackerPageState extends State<PillTrackerPage> {
     return SafeArea(
       bottom: false,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(24, 8, 24, widget.bottomPadding + 18),
+        padding: EdgeInsets.fromLTRB(24, 12, 24, widget.bottomPadding + 18),
         children: [
-          _TrackerHeader(
-            copy: widget.copy,
-            date: now,
-            onOpenHistory: widget.onOpenHistory,
-            onOpenSettings: widget.onOpenSettings,
-          ),
-          const SizedBox(height: 10),
           _DoseStepper(
             copy: widget.copy,
             value: widget.dailyDoseGoal,
@@ -100,102 +93,6 @@ class _PillTrackerPageState extends State<PillTrackerPage> {
             onTap: widget.onOpenSettings,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _TrackerHeader extends StatelessWidget {
-  const _TrackerHeader({
-    required this.copy,
-    required this.date,
-    required this.onOpenHistory,
-    required this.onOpenSettings,
-  });
-
-  final AppCopy copy;
-  final DateTime date;
-  final VoidCallback onOpenHistory;
-  final VoidCallback onOpenSettings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                copy.trackerTitle,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF2E2274),
-                      letterSpacing: -1.0,
-                      fontSize: 24,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                copy.fullDate(date),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF5B5890),
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                    ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Row(
-          children: [
-            _HeaderActionButton(
-              icon: Icons.history,
-              onTap: onOpenHistory,
-            ),
-            const SizedBox(width: 8),
-            _HeaderActionButton(
-              icon: Icons.settings,
-              onTap: onOpenSettings,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _HeaderActionButton extends StatelessWidget {
-  const _HeaderActionButton({
-    required this.icon,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkResponse(
-      onTap: onTap,
-      radius: 22,
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha(210),
-          borderRadius: BorderRadius.circular(21),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0AA594E8),
-              blurRadius: 18,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Icon(icon, color: const Color(0xFF5B5890), size: 22),
       ),
     );
   }
@@ -278,22 +175,11 @@ class _DoseStepper extends StatelessWidget {
             onChanged: onDoseMomentsChanged,
           )
         else
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 18,
-            runSpacing: 8,
-            children: List.generate(
-              value,
-              (index) => _DoseGuideChip(
-                label: copy.doseCountLabel(index + 1),
-              ),
-            ),
-          ),
+          const SizedBox.shrink(),
       ],
     );
   }
 }
-
 class _DoseMomentCheckboxRow extends StatelessWidget {
   const _DoseMomentCheckboxRow({
     required this.copy,
@@ -353,10 +239,11 @@ class _DoseMomentCheckboxRow extends StatelessWidget {
   List<String> _toggleMoment(List<String> selected, String moment, int goal) {
     final next = List<String>.from(selected);
     if (next.contains(moment)) {
-      return next;
+      next.remove(moment);
+      return _orderedMoments(next);
     }
     if (next.length >= goal) {
-      next.removeLast();
+      next.removeAt(0);
     }
     next.add(moment);
     return _orderedMoments(next);
@@ -364,31 +251,6 @@ class _DoseMomentCheckboxRow extends StatelessWidget {
 
   List<String> _orderedMoments(List<String> values) {
     return _options.where(values.contains).toList();
-  }
-}
-
-class _DoseGuideChip extends StatelessWidget {
-  const _DoseGuideChip({
-    required this.label,
-  });
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF6C6896),
-          ),
-        ),
-      ],
-    );
   }
 }
 

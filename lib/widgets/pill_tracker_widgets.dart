@@ -146,12 +146,11 @@ class _TrackerTableHeader extends StatelessWidget {
 
   List<_ColumnHeaderData> _buildHeaders() {
     if (columnCount <= 3) {
-      final normalized = List<String>.from(doseMoments);
-      while (normalized.length < columnCount) {
-        normalized.add('dose_${normalized.length + 1}');
-      }
       return List.generate(columnCount, (index) {
-        final moment = normalized[index];
+        if (index >= doseMoments.length) {
+          return const _ColumnHeaderData(label: '');
+        }
+        final moment = doseMoments[index];
         return _ColumnHeaderData(
           iconAsset: _momentIcon(moment),
           label: _momentLabel(copy, moment),
@@ -189,7 +188,7 @@ class _ColumnHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (iconAsset != null) ...[
+        if (iconAsset != null && label.isNotEmpty) ...[
           Image.asset(
             iconAsset!,
             width: 15,
@@ -198,17 +197,18 @@ class _ColumnHeader extends StatelessWidget {
           ),
           const SizedBox(width: 6),
         ],
-        Flexible(
-          child: Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF6C6896),
+        if (label.isNotEmpty)
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF6C6896),
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -223,7 +223,7 @@ String _momentLabel(AppCopy copy, String moment) {
     case 'evening':
       return copy.eveningLabel;
     default:
-      return copy.doseCountLabel(_doseIndex(moment));
+      return '';
   }
 }
 
@@ -237,13 +237,6 @@ String? _momentIcon(String moment) {
     default:
       return null;
   }
-}
-
-int _doseIndex(String value) {
-  if (value.startsWith('dose_')) {
-    return int.tryParse(value.replaceFirst('dose_', '')) ?? 1;
-  }
-  return 1;
 }
 
 class _TrackerRowCard extends StatelessWidget {
@@ -531,13 +524,16 @@ class PillBlisterSlot extends StatelessWidget {
                       horizontal: 4,
                       vertical: 3,
                     ),
-                    child: Transform.scale(
-                      scale: highlight ? 1.12 : 1.08,
-                      child: Image.asset(
-                        'assets/pills/pill.png',
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    child: Transform.translate(
+                      offset: const Offset(0, 1),
+                      child: Transform.scale(
+                        scale: highlight ? 1.12 : 1.08,
+                        child: Image.asset(
+                          'assets/pills/pill.png',
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   ),

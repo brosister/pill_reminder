@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -25,36 +23,6 @@ class PillReminderHomePage extends StatefulWidget {
 
 class _PillReminderHomePageState extends State<PillReminderHomePage> {
   static const double _baseBottomOverlayPadding = 118;
-  static const plans = [
-    PillPlan(
-      label: 'Morning + Night',
-      dailyDoses: 2,
-      intervalHours: 12,
-      startHour: 8,
-      icon: Icons.wb_sunny_outlined,
-    ),
-    PillPlan(
-      label: 'Three Times',
-      dailyDoses: 3,
-      intervalHours: 8,
-      startHour: 8,
-      icon: Icons.schedule_rounded,
-    ),
-    PillPlan(
-      label: 'After Meals',
-      dailyDoses: 3,
-      intervalHours: 6,
-      startHour: 9,
-      icon: Icons.restaurant_outlined,
-    ),
-    PillPlan(
-      label: 'Antibiotics',
-      dailyDoses: 4,
-      intervalHours: 6,
-      startHour: 7,
-      icon: Icons.medication_outlined,
-    ),
-  ];
 
   final AdConfigService _adConfig = AdConfigService();
   final ReminderService _reminderService = ReminderService.instance;
@@ -73,23 +41,11 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
   int _intervalHours = 8;
   int _startHourValue = 8;
   List<String> _doseMoments = const ['morning', 'lunch', 'evening'];
+  Map<String, int> _reminderTimes = const {};
   bool _remindersEnabled = false;
   final List<DoseLog> _logs = [];
   final List<MedicationItemState> _medications = [];
   final List<DailyMedicationSummary> _history = [];
-
-  List<int> get _doseOptions =>
-      ({1, 2, 3, 4, 5, 6, ...plans.map((p) => p.dailyDoses), _dailyDoseGoal}
-            .toList()
-        ..sort());
-  List<int> get _intervalOptions =>
-      ({4, 6, 8, 12, ...plans.map((p) => p.intervalHours), _intervalHours}
-            .toList()
-        ..sort());
-  List<int> get _startHourOptions =>
-      ({6, 7, 8, 9, 10, 12, ...plans.map((p) => p.startHour), _startHourValue}
-            .toList()
-        ..sort());
 
   void _normalizeCycleProgress() {
     if (_cycleStatuses.length > _dailyDoseGoal) {
@@ -184,8 +140,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
     if (!mounted) return;
     setState(() {
       _remindersEnabled = settings.enabled;
-      _intervalHours = settings.intervalHours;
-      _startHourValue = settings.startHour;
+      _reminderTimes = Map<String, int>.from(settings.slotTimes);
     });
     if (_remindersEnabled) {
       await _syncReminderSchedule(silent: true);
@@ -240,14 +195,10 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
 
   Future<bool> _syncReminderSchedule({bool silent = false}) async {
     final copy = AppCopy.of(context);
+    final slotKeys = _currentReminderSlots();
     final settings = ReminderSettings(
       enabled: _remindersEnabled,
-      intervalHours: _intervalHours,
-      startHour: _startHourValue,
-      endHour: math.min(
-        23,
-        _startHourValue + ((_dailyDoseGoal - 1) * _intervalHours),
-      ),
+      slotTimes: _resolvedReminderTimes(slotKeys),
     );
     await _reminderService.saveSettings(settings);
     if (_remindersEnabled) {
@@ -266,7 +217,7 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
     }
     await _reminderService.syncMedicationReminders(
       settings: settings,
-      dailyDoses: _dailyDoseGoal,
+      slotKeys: slotKeys,
       isKorean: copy.isKorean,
     );
     if (!silent) {
@@ -283,12 +234,15 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
     if (dailyDoseGoal >= 4) {
       return _defaultDoseMoments(dailyDoseGoal);
     }
-    final defaults = _defaultDoseMoments(dailyDoseGoal);
-    if (source.length != dailyDoseGoal) return defaults;
     const allowed = {'morning', 'lunch', 'evening'};
-    if (source.any((item) => !allowed.contains(item))) return defaults;
-    if (source.toSet().length != source.length) return defaults;
-    return List<String>.from(source);
+    final filtered = <String>[];
+    for (final item in source) {
+      if (!allowed.contains(item)) continue;
+      if (filtered.contains(item)) continue;
+      filtered.add(item);
+      if (filtered.length >= dailyDoseGoal) break;
+    }
+    return filtered;
   }
 
   Future<void> _setDoseMoments(List<String> value) async {
@@ -296,6 +250,47 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
       _doseMoments = _normalizeDoseMoments(value, _dailyDoseGoal);
     });
     await _persistMedicationState();
+    if (_remindersEnabled) await _syncReminderSchedule();
+  }
+
+  List<String> _currentReminderSlots() {
+    if (_dailyDoseGoal >= 4) {
+      return _defaultDoseMoments(_dailyDoseGoal);
+    }
+    final normalized = _normalizeDoseMoments(_doseMoments, _dailyDoseGoal);
+    if (normalized.isEmpty) {
+      return _defaultDoseMoments(_dailyDoseGoal).take(1).toList();
+    }
+    return normalized;
+  }
+
+  Map<String, int> _resolvedReminderTimes(List<String> slotKeys) {
+    final next = <String, int>{};
+    for (var index = 0; index < slotKeys.length; index++) {
+      final key = slotKeys[index];
+      next[key] = _reminderTimes[key] ??
+          _reminderService.defaultReminderMinutes(key, index);
+    }
+    return next;
+  }
+
+  Future<void> _setReminderTime(String slotKey, int minutes) async {
+    setState(() {
+      _reminderTimes = {
+        ..._reminderTimes,
+        slotKey: minutes,
+      };
+    });
+    if (_remindersEnabled) {
+      await _syncReminderSchedule();
+    } else {
+      await _reminderService.saveSettings(
+        ReminderSettings(
+          enabled: _remindersEnabled,
+          slotTimes: _resolvedReminderTimes(_currentReminderSlots()),
+        ),
+      );
+    }
   }
 
   Future<void> _addMedicationName() async {
@@ -431,31 +426,16 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
         builder: (_) => PillSettingsPage(
           copy: AppCopy.of(context),
           remindersEnabled: _remindersEnabled,
-          intervalHours: _intervalHours,
-          startHourValue: _startHourValue,
           dailyDoseGoal: _dailyDoseGoal,
           doseMoments: _doseMoments,
+          reminderTimes: _resolvedReminderTimes(_currentReminderSlots()),
           medications: _medications,
           medicationController: _medicationController,
-          doseOptions: _doseOptions,
-          intervalOptions: _intervalOptions,
-          startHourOptions: _startHourOptions,
           onReminderChanged: (value) async {
             setState(() => _remindersEnabled = value);
             return _syncReminderSchedule();
           },
-          onDoseChanged: _setDailyDoseGoal,
-          onDoseMomentsChanged: _setDoseMoments,
-          onIntervalChanged: (value) async {
-            setState(() => _intervalHours = value);
-            await _persistMedicationState();
-            if (_remindersEnabled) await _syncReminderSchedule();
-          },
-          onStartHourChanged: (value) async {
-            setState(() => _startHourValue = value);
-            await _persistMedicationState();
-            if (_remindersEnabled) await _syncReminderSchedule();
-          },
+          onReminderTimeChanged: _setReminderTime,
           onAddMedication: _addMedicationName,
           onRemoveMedication: _removeMedicationName,
           onResetToday: _resetToday,
@@ -530,27 +510,19 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
     return Scaffold(
       extendBody: true,
       appBar: _selectedTab == 0
-          ? null
-          : AppBar(
-              title: Text(
-                copy.statsTitle,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF25164D),
-                    ),
-              ),
-              actions: [
-                IconButton(
-                  tooltip: copy.historyTitle,
-                  onPressed: _openHistory,
-                  icon: const Icon(Icons.history_rounded),
-                ),
-                IconButton(
-                  tooltip: copy.settingsTitle,
-                  onPressed: _openSettings,
-                  icon: const Icon(Icons.settings_rounded),
-                ),
-              ],
+          ? _HomeTrackerAppBar(
+              copy: copy,
+              date: DateTime.now(),
+              title: copy.trackerTitle,
+              onOpenHistory: _openHistory,
+              onOpenSettings: _openSettings,
+            )
+          : _HomeTrackerAppBar(
+              copy: copy,
+              date: DateTime.now(),
+              title: copy.statsTitle,
+              onOpenHistory: _openHistory,
+              onOpenSettings: _openSettings,
             ),
       body: Stack(
         children: [
@@ -594,6 +566,105 @@ class _PillReminderHomePageState extends State<PillReminderHomePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeTrackerAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _HomeTrackerAppBar({
+    required this.copy,
+    required this.date,
+    required this.title,
+    required this.onOpenHistory,
+    required this.onOpenSettings,
+  });
+
+  final AppCopy copy;
+  final DateTime date;
+  final String title;
+  final VoidCallback onOpenHistory;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(96);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      toolbarHeight: 96,
+      titleSpacing: 24,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF2E2274),
+                  letterSpacing: -1.0,
+                  fontSize: 24,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            copy.fullDate(date),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: const Color(0xFF5B5890),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+          ),
+        ],
+      ),
+      actions: [
+        _HeaderActionButton(
+          icon: Icons.history,
+          onTap: onOpenHistory,
+        ),
+        const SizedBox(width: 8),
+        _HeaderActionButton(
+          icon: Icons.settings,
+          onTap: onOpenSettings,
+        ),
+        const SizedBox(width: 16),
+      ],
+    );
+  }
+}
+
+class _HeaderActionButton extends StatelessWidget {
+  const _HeaderActionButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      onTap: onTap,
+      radius: 22,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(210),
+          borderRadius: BorderRadius.circular(21),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0AA594E8),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: const Color(0xFF5B5890), size: 22),
       ),
     );
   }

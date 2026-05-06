@@ -9,20 +9,13 @@ class PillSettingsPage extends StatefulWidget {
     super.key,
     required this.copy,
     required this.remindersEnabled,
-    required this.intervalHours,
-    required this.startHourValue,
     required this.dailyDoseGoal,
     required this.doseMoments,
+    required this.reminderTimes,
     required this.medications,
     required this.medicationController,
-    required this.doseOptions,
-    required this.intervalOptions,
-    required this.startHourOptions,
     required this.onReminderChanged,
-    required this.onDoseChanged,
-    required this.onDoseMomentsChanged,
-    required this.onIntervalChanged,
-    required this.onStartHourChanged,
+    required this.onReminderTimeChanged,
     required this.onAddMedication,
     required this.onRemoveMedication,
     required this.onResetToday,
@@ -30,20 +23,14 @@ class PillSettingsPage extends StatefulWidget {
 
   final AppCopy copy;
   final bool remindersEnabled;
-  final int intervalHours;
-  final int startHourValue;
   final int dailyDoseGoal;
   final List<String> doseMoments;
+  final Map<String, int> reminderTimes;
   final List<MedicationItemState> medications;
   final TextEditingController medicationController;
-  final List<int> doseOptions;
-  final List<int> intervalOptions;
-  final List<int> startHourOptions;
   final Future<bool> Function(bool) onReminderChanged;
-  final Future<void> Function(int) onDoseChanged;
-  final Future<void> Function(List<String>) onDoseMomentsChanged;
-  final Future<void> Function(int) onIntervalChanged;
-  final Future<void> Function(int) onStartHourChanged;
+  final Future<void> Function(String slotKey, int minutes)
+      onReminderTimeChanged;
   final Future<void> Function() onAddMedication;
   final Future<void> Function(String) onRemoveMedication;
   final Future<void> Function() onResetToday;
@@ -54,19 +41,13 @@ class PillSettingsPage extends StatefulWidget {
 
 class _PillSettingsPageState extends State<PillSettingsPage> {
   late bool _remindersEnabled;
-  late int _intervalHours;
-  late int _startHourValue;
-  late int _dailyDoseGoal;
-  late List<String> _doseMoments;
+  late Map<String, int> _reminderTimes;
 
   @override
   void initState() {
     super.initState();
     _remindersEnabled = widget.remindersEnabled;
-    _intervalHours = widget.intervalHours;
-    _startHourValue = widget.startHourValue;
-    _dailyDoseGoal = widget.dailyDoseGoal;
-    _doseMoments = List<String>.from(widget.doseMoments);
+    _reminderTimes = Map<String, int>.from(widget.reminderTimes);
   }
 
   @override
@@ -75,17 +56,8 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
     if (oldWidget.remindersEnabled != widget.remindersEnabled) {
       _remindersEnabled = widget.remindersEnabled;
     }
-    if (oldWidget.intervalHours != widget.intervalHours) {
-      _intervalHours = widget.intervalHours;
-    }
-    if (oldWidget.startHourValue != widget.startHourValue) {
-      _startHourValue = widget.startHourValue;
-    }
-    if (oldWidget.dailyDoseGoal != widget.dailyDoseGoal) {
-      _dailyDoseGoal = widget.dailyDoseGoal;
-    }
-    if (oldWidget.doseMoments != widget.doseMoments) {
-      _doseMoments = List<String>.from(widget.doseMoments);
+    if (oldWidget.reminderTimes != widget.reminderTimes) {
+      _reminderTimes = Map<String, int>.from(widget.reminderTimes);
     }
   }
 
@@ -122,7 +94,6 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
             _ReminderStatusCard(
               copy: widget.copy,
               enabled: _remindersEnabled,
-              intervalHours: _intervalHours,
               onChanged: (value) async {
                 setState(() => _remindersEnabled = value);
                 final actual = await widget.onReminderChanged(value);
@@ -131,32 +102,29 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
               },
             ),
             const SizedBox(height: 18),
-            _SettingsCard(
+            _ReminderTimeCard(
               copy: widget.copy,
-              dailyDoseGoal: _dailyDoseGoal,
-              doseMoments: _doseMoments,
-              intervalHours: _intervalHours,
-              startHourValue: _startHourValue,
-              doseOptions: widget.doseOptions,
-              intervalOptions: widget.intervalOptions,
-              startHourOptions: widget.startHourOptions,
-              onDoseChanged: (value) async {
-                setState(() => _dailyDoseGoal = value);
-                await widget.onDoseChanged(value);
-                if (!mounted) return;
-                setState(() => _doseMoments = _defaultDoseMoments(value));
-              },
-              onDoseMomentsChanged: (value) async {
-                setState(() => _doseMoments = List<String>.from(value));
-                await widget.onDoseMomentsChanged(value);
-              },
-              onIntervalChanged: (value) async {
-                setState(() => _intervalHours = value);
-                await widget.onIntervalChanged(value);
-              },
-              onStartHourChanged: (value) async {
-                setState(() => _startHourValue = value);
-                await widget.onStartHourChanged(value);
+              slotKeys: _currentReminderSlots(),
+              reminderTimes: _reminderTimes,
+              onTapTime: (slotKey) async {
+                final currentMinutes = _reminderTimes[slotKey] ??
+                    _defaultReminderMinutes(slotKey, _currentReminderSlots().indexOf(slotKey));
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay(
+                    hour: currentMinutes ~/ 60,
+                    minute: currentMinutes % 60,
+                  ),
+                );
+                if (picked == null) return;
+                final nextMinutes = (picked.hour * 60) + picked.minute;
+                setState(() {
+                  _reminderTimes = {
+                    ..._reminderTimes,
+                    slotKey: nextMinutes,
+                  };
+                });
+                await widget.onReminderTimeChanged(slotKey, nextMinutes);
               },
             ),
             const SizedBox(height: 18),
@@ -196,6 +164,18 @@ class _PillSettingsPageState extends State<PillSettingsPage> {
   }
 }
 
+extension on _PillSettingsPageState {
+  List<String> _currentReminderSlots() {
+    if (widget.dailyDoseGoal >= 4) {
+      return List.generate(widget.dailyDoseGoal, (index) => 'dose_${index + 1}');
+    }
+    if (widget.doseMoments.isEmpty) {
+      return _defaultDoseMoments(widget.dailyDoseGoal).take(1).toList();
+    }
+    return List<String>.from(widget.doseMoments);
+  }
+}
+
 List<String> _defaultDoseMoments(int dailyDoseGoal) {
   switch (dailyDoseGoal) {
     case 1:
@@ -209,17 +189,28 @@ List<String> _defaultDoseMoments(int dailyDoseGoal) {
   }
 }
 
+int _defaultReminderMinutes(String slotKey, int slotIndex) {
+  switch (slotKey) {
+    case 'morning':
+      return 8 * 60;
+    case 'lunch':
+      return 13 * 60;
+    case 'evening':
+      return 20 * 60;
+    default:
+      return (8 * 60) + (slotIndex * 180);
+  }
+}
+
 class _ReminderStatusCard extends StatelessWidget {
   const _ReminderStatusCard({
     required this.copy,
     required this.enabled,
-    required this.intervalHours,
     required this.onChanged,
   });
 
   final AppCopy copy;
   final bool enabled;
-  final int intervalHours;
   final ValueChanged<bool> onChanged;
 
   @override
@@ -267,14 +258,6 @@ class _ReminderStatusCard extends StatelessWidget {
               ),
               Switch(value: enabled, onChanged: onChanged),
             ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            copy.intervalLabel(intervalHours),
-            style: const TextStyle(
-              color: Color(0xFF5B3CD0),
-              fontWeight: FontWeight.w800,
-            ),
           ),
         ],
       ),
@@ -398,34 +381,18 @@ class _MedicationManagerCard extends StatelessWidget {
   }
 }
 
-class _SettingsCard extends StatelessWidget {
-  const _SettingsCard({
+class _ReminderTimeCard extends StatelessWidget {
+  const _ReminderTimeCard({
     required this.copy,
-    required this.dailyDoseGoal,
-    required this.doseMoments,
-    required this.intervalHours,
-    required this.startHourValue,
-    required this.doseOptions,
-    required this.intervalOptions,
-    required this.startHourOptions,
-    required this.onDoseChanged,
-    required this.onDoseMomentsChanged,
-    required this.onIntervalChanged,
-    required this.onStartHourChanged,
+    required this.slotKeys,
+    required this.reminderTimes,
+    required this.onTapTime,
   });
 
   final AppCopy copy;
-  final int dailyDoseGoal;
-  final List<String> doseMoments;
-  final int intervalHours;
-  final int startHourValue;
-  final List<int> doseOptions;
-  final List<int> intervalOptions;
-  final List<int> startHourOptions;
-  final ValueChanged<int> onDoseChanged;
-  final ValueChanged<List<String>> onDoseMomentsChanged;
-  final ValueChanged<int> onIntervalChanged;
-  final ValueChanged<int> onStartHourChanged;
+  final List<String> slotKeys;
+  final Map<String, int> reminderTimes;
+  final ValueChanged<String> onTapTime;
 
   @override
   Widget build(BuildContext context) {
@@ -434,178 +401,32 @@ class _SettingsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            copy.currentCycle,
+            copy.reminderTimeSettings,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
               color: Color(0xFF25164D),
             ),
           ),
-          const SizedBox(height: 14),
-          if (dailyDoseGoal <= 3) ...[
-            _DoseMomentEditor(
-              copy: copy,
-              dailyDoseGoal: dailyDoseGoal,
-              doseMoments: doseMoments,
-              onChanged: onDoseMomentsChanged,
-            ),
-            const SizedBox(height: 14),
-          ],
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 500;
-              final children = [
-                _PickerTile(
-                  label: copy.doseGoal,
-                  value: dailyDoseGoal,
-                  textForValue: copy.doses,
-                  icon: Icons.medication_rounded,
-                  onChanged: onDoseChanged,
-                  values: doseOptions,
-                ),
-                _PickerTile(
-                  label: copy.reminderInterval,
-                  value: intervalHours,
-                  textForValue: copy.intervalLabel,
-                  icon: Icons.av_timer_rounded,
-                  onChanged: onIntervalChanged,
-                  values: intervalOptions,
-                ),
-                _PickerTile(
-                  label: copy.startHour,
-                  value: startHourValue,
-                  textForValue: copy.hourLabel,
-                  icon: Icons.access_time_rounded,
-                  onChanged: onStartHourChanged,
-                  values: startHourOptions,
-                ),
-              ];
-              if (isCompact) {
-                return Column(
-                  children: [
-                    for (var i = 0; i < children.length; i++) ...[
-                      children[i],
-                      if (i != children.length - 1) const SizedBox(height: 12),
-                    ],
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: children[0]),
-                  const SizedBox(width: 12),
-                  Expanded(child: children[1]),
-                  const SizedBox(width: 12),
-                  Expanded(child: children[2]),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DoseMomentEditor extends StatelessWidget {
-  const _DoseMomentEditor({
-    required this.copy,
-    required this.dailyDoseGoal,
-    required this.doseMoments,
-    required this.onChanged,
-  });
-
-  final AppCopy copy;
-  final int dailyDoseGoal;
-  final List<String> doseMoments;
-  final ValueChanged<List<String>> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    const options = ['morning', 'lunch', 'evening'];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F2FF),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          const SizedBox(height: 8),
           Text(
-            copy.isKorean ? '복약 시간대' : 'Dose times',
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF25164D),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            copy.isKorean
-                ? '횟수를 바꾸면 기본값이 자동 적용되고, 필요하면 각 회차를 직접 바꿀 수 있어요.'
-                : 'Defaults are applied automatically when the dose count changes, and you can override each slot.',
+            copy.reminderTimeSettingsHint,
             style: const TextStyle(
               color: Color(0xFF6C6192),
               height: 1.35,
             ),
           ),
           const SizedBox(height: 14),
-          ...List.generate(dailyDoseGoal, (index) {
-            final selected =
-                index < doseMoments.length ? doseMoments[index] : options.first;
+          ...List.generate(slotKeys.length, (index) {
+            final slotKey = slotKeys[index];
+            final minutes = reminderTimes[slotKey] ??
+                _defaultReminderMinutes(slotKey, index);
             return Padding(
-              padding: EdgeInsets.only(bottom: index == dailyDoseGoal - 1 ? 0 : 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    copy.doseSlotLabel(index),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF5B5890),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: options.map((option) {
-                      final isSelected = selected == option;
-                      return ChoiceChip(
-                        label: Text(_momentLabel(copy, option)),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          final next = List<String>.from(doseMoments);
-                          while (next.length < dailyDoseGoal) {
-                            next.add(options[next.length % options.length]);
-                          }
-                          final existingIndex = next.indexOf(option);
-                          if (existingIndex != -1 && existingIndex != index) {
-                            final previous = next[index];
-                            next[existingIndex] = previous;
-                          }
-                          next[index] = option;
-                          onChanged(next);
-                        },
-                        selectedColor: const Color(0xFFDED5FF),
-                        backgroundColor: Colors.white,
-                        labelStyle: TextStyle(
-                          color: isSelected
-                              ? const Color(0xFF4B35C8)
-                              : const Color(0xFF6C6192),
-                          fontWeight: FontWeight.w700,
-                        ),
-                        side: BorderSide(
-                          color: isSelected
-                              ? const Color(0xFF9F8BFF)
-                              : const Color(0xFFE2DBFB),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
+              padding: EdgeInsets.only(bottom: index == slotKeys.length - 1 ? 0 : 12),
+              child: _ReminderTimeTile(
+                label: _slotLabel(copy, slotKey, index),
+                timeLabel: _formatMinutes(copy, minutes),
+                onTap: () => onTapTime(slotKey),
               ),
             );
           }),
@@ -615,8 +436,65 @@ class _DoseMomentEditor extends StatelessWidget {
   }
 }
 
-String _momentLabel(AppCopy copy, String value) {
-  switch (value) {
+class _ReminderTimeTile extends StatelessWidget {
+  const _ReminderTimeTile({
+    required this.label,
+    required this.timeLabel,
+    required this.onTap,
+  });
+
+  final String label;
+  final String timeLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFF7F2FF),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.access_time_rounded,
+                color: Color(0xFF7A5AF8),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF25164D),
+                  ),
+                ),
+              ),
+              Text(
+                timeLabel,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF5B3CD0),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF5B5890),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _slotLabel(AppCopy copy, String slotKey, int slotIndex) {
+  switch (slotKey) {
     case 'morning':
       return copy.morningLabel;
     case 'lunch':
@@ -624,78 +502,20 @@ String _momentLabel(AppCopy copy, String value) {
     case 'evening':
       return copy.eveningLabel;
     default:
-      return value;
+      return copy.doseSlotLabel(slotIndex);
   }
 }
 
-class _PickerTile extends StatelessWidget {
-  const _PickerTile({
-    required this.label,
-    required this.value,
-    required this.textForValue,
-    required this.icon,
-    required this.onChanged,
-    required this.values,
-  });
-
-  final String label;
-  final int value;
-  final String Function(int) textForValue;
-  final IconData icon;
-  final ValueChanged<int> onChanged;
-  final List<int> values;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F2FF),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: const Color(0xFF7A5AF8)),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF25164D),
-            ),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<int>(
-            initialValue: value,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            items: values
-                .map(
-                  (v) => DropdownMenuItem(
-                    value: v,
-                    child: Text(textForValue(v)),
-                  ),
-                )
-                .toList(),
-            onChanged: (v) {
-              if (v != null) onChanged(v);
-            },
-          ),
-        ],
-      ),
-    );
+String _formatMinutes(AppCopy copy, int minutes) {
+  final hour = (minutes ~/ 60) % 24;
+  final minute = minutes % 60;
+  if (copy.isKorean) {
+    final period = hour < 12 ? '오전' : '오후';
+    final normalizedHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    return '$period $normalizedHour:${minute.toString().padLeft(2, '0')}';
   }
+  final period = hour < 12 ? 'AM' : 'PM';
+  final normalizedHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+  return '$normalizedHour:${minute.toString().padLeft(2, '0')} $period';
 }
 

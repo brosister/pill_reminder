@@ -28,13 +28,13 @@ class AppCopy {
   String get medications => isKorean ? '내가 먹는 약' : 'My Medications';
   String get quickPlans => isKorean ? '빠른 복약 플랜' : 'Quick Plans';
   String get reminderStatus =>
-      isKorean ? '백그라운드 알림' : 'Background Reminders';
+      isKorean ? '복약 알림' : 'Medication reminders';
   String get reminderOn => isKorean
-      ? '앱을 닫아도 정해둔 복약 시간에 알림이 계속 울립니다.'
-      : 'Medication reminders will continue to alert you even after the app is closed.';
+      ? '설정한 시간에 복약 알림을 받을 수 있어요.'
+      : 'Get medication reminders at your scheduled times.';
   String get reminderOff => isKorean
-      ? '현재 복약 알림이 꺼져 있습니다.'
-      : 'Medication reminders are currently turned off.';
+      ? '복약 알림이 꺼져 있어요.'
+      : 'Medication reminders are turned off.';
   String get reminderPermissionDenied => isKorean
       ? '알림 권한이 없어 복약 알림을 켤 수 없습니다.'
       : 'Notification permission was denied, so reminders could not be enabled.';
@@ -105,6 +105,11 @@ class AppCopy {
       ? '설정한 시간에 알림을 받을 수 있어요.'
       : 'Get reminders at your scheduled times.';
   String get reminderSettingsCta => isKorean ? '알림 설정' : 'Alert settings';
+  String get reminderTimeSettings =>
+      isKorean ? '복약 알림 시간' : 'Medication reminder times';
+  String get reminderTimeSettingsHint => isKorean
+      ? '메인에서 선택한 복약 시간대 기준으로 알림 시간을 정하세요.'
+      : 'Set reminder times based on the dose moments selected on the main screen.';
   String get notificationGuide => isKorean
       ? '리마인더는 설정값 기준으로 다시 예약됩니다.'
       : 'Reminders are rescheduled based on your current settings.';

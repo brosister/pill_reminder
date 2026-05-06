@@ -1,7 +1,7 @@
 name: pill_reminder
 description: "Pill Reminder - medication tracker with server-driven AdMob config."
 publish_to: 'none'
-version: 1.0.5+7
+version: 1.0.6+8
 
 environment:
   sdk: ^3.9.2
